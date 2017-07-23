@@ -11,7 +11,6 @@ const vdf = require('vdf')
 
 const { spawn } = require('child_process')
 const stream = require('stream')
-const utf8Decoder = new (require('string_decoder').StringDecoder)('utf8')
 
 const defaultOptions = {
   asyncDelay: 3000,
@@ -25,7 +24,6 @@ const defaultOptions = {
 module.exports = class SteamCmd {
   constructor (options) {
     this.options = _.defaults({}, options, defaultOptions)
-    this.steamcmdProcess = null
     this.steamcmdReady = false
     /**
      * Indicates who is currently logged in. An empty string means no has been
@@ -125,55 +123,35 @@ module.exports = class SteamCmd {
     return {
       MESSAGE: 0,
       STEAMCMD_READY: 1,
-      LOGGED_IN: 2,
-      UPDATING: 3,
-      UPDATED: 4
+      PASSWORD_REQUIRED: 2,
+      STEAM_GUARD_CODE_REQUIRED: 3,
+      LOGGED_IN: 4,
+      UPDATING: 5,
+      UPDATED: 6
     }
   }
 
   run (username) {
     // TODO I think a transform stream would be better suited in this case
-    let ioStream = new stream.Duplex({
-      // TODO should I maybe use a buffer instead and then decode as JS object?
-      decodeStrings: false,
-      /**
-       * Is called whenever the user wants to read the stream. The output of
-       * steamcmd is pushed here.
-       */
-      read () {},
-      /**
-       * Is called whenever the user writes to this stream.
-       * @param {string} chunk The string the user wrote. This is a string because
-       * `decodeStrings` is set to `false`.
-       * @param {string} enc The encoding of the string.
-       * @param {Function} next A callback to call once this function is done.
-       * This is required to allow piping.
-       */
-      write (chunk, enc, next) {
-        this.steamcmdProcess.stdin.write(chunk)
-        next()
-      },
-      /**
-       * Is called when the stream needs to be forcefully destroyed.
-       * @param {Error|null} err The error that caused this stream to be
-       * destroyed. `null` means that no error occurred.
-       * @param {Function} callback The callback function to call once the stream
-       * has been destroyed.
-       */
-      destroy (err, callback) {
-        if (err) {
-          // TODO handle the error properly
-          console.error(err)
+    // TODO should I maybe use a buffer instead and then decode as JS object?
+    const ioStream = {
+      stdin: new stream.Writable({
+        decodeStrings: false,
+        write (chunk, enc, next) {
+          steamcmdProcess.stdin.write(chunk)
+          next()
         }
-        // TODO stop the steamcmdProcess and call callback
-      }
-    })
+      }),
+      stdout: new stream.Readable({
+        read () {}
+      })
+    }
 
     // TODO download steamCMD first if it doesn't exist yet
-    this.steamcmdProcess = spawn(this.exePath)
+    const steamcmdProcess = spawn(this.exePath)
     let currLine = ''
-    this.steamcmdProcess.stdout.on('data', (data) => {
-      currLine += utf8Decoder.write(data)
+    steamcmdProcess.stdout.on('data', (data) => {
+      currLine += data.toString().replace(/\r\n/g, '\n')
       let lines = currLine.split('\n')
       currLine = lines.pop()
 
@@ -186,9 +164,11 @@ module.exports = class SteamCmd {
         if (line.includes('Loading Steam API...OK')) {
           response.type = SteamCmd.MESSAGE_TYPES.STEAMCMD_READY
           this.steamcmdReady = true
+        } else if (line.includes('Waiting for user info...OK')) {
+          response.type = SteamCmd.MESSAGE_TYPES.LOGGED_IN
         }
 
-        ioStream.push(JSON.stringify(response))
+        ioStream.stdout.push(JSON.stringify(response))
       }
 
       if (currLine === '') {
@@ -196,11 +176,13 @@ module.exports = class SteamCmd {
       }
     })
 
-    this.steamcmdProcess.stderr.on('data', (data) => {
+    steamcmdProcess.stderr.on('data', (data) => {
+      // TODO for some reason this doesn't work. Certain output is just not
+      // available on these channels
       console.error(`stderr: ${data}`)
     })
 
-    this.steamcmdProcess.on('close', (code) => {
+    steamcmdProcess.on('close', (code) => {
       // if (code === 0 || code === 7) {
       //   // Steamcmd will occasionally exit with code 7 and be fine.
       //   // This usually happens the first run() after download().
