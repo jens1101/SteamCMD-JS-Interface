@@ -1,0 +1,24 @@
+{
+  "name": "steamcmd",
+  "version": "0.0.1",
+  "description": "",
+  "main": "class-implementation.js",
+  "dependencies": {
+    "lodash": "^4.17.4",
+    "request": "^2.81.0",
+    "tar": "^3.1.5",
+    "unzip": "^0.1.11",
+    "vdf": "0.0.2",
+    "zlib": "^1.0.5"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "node",
+    "steamcmd"
+  ],
+  "author": "",
+  "license": "ISC"
+}
