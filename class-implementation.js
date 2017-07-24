@@ -9,8 +9,13 @@ const vdf = require('vdf')
 // TODO also try to remove unzip, tar, and zlib. They haven't been updated in
 // years and I'm sure that a native option exists
 
-const { spawn } = require('child_process')
+// const { spawn } = require('child_process')
 const stream = require('stream')
+
+// TODO use node-pty instead of child_process. This is apparantly a better option
+// because it gives us the full output
+const pty = require('node-pty')
+const stripAnsi = require('strip-ansi')
 
 const defaultOptions = {
   asyncDelay: 3000,
@@ -38,21 +43,27 @@ module.exports = class SteamCmd {
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip',
           extractor: require('unzip'),
-          exeName: 'steamcmd.exe'
+          exeName: 'steamcmd.exe',
+          shellName: 'powershell.exe',
+          echoExitCode: 'echo $lastexitcode'
         }
         break
       case 'darwin':
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz',
           extractor: require('tar'),
-          exeName: 'steamcmd.sh'
+          exeName: 'steamcmd.sh',
+          shellName: 'bash',
+          echoExitCode: 'echo $?'
         }
         break
       case 'linux':
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz',
           extractor: require('tar'),
-          exeName: 'steamcmd.sh'
+          exeName: 'steamcmd.sh',
+          shellName: 'bash',
+          echoExitCode: 'echo $?'
         }
         break
       default:
@@ -138,7 +149,7 @@ module.exports = class SteamCmd {
       stdin: new stream.Writable({
         decodeStrings: false,
         write (chunk, enc, next) {
-          steamcmdProcess.stdin.write(chunk)
+          steamcmdProcess.write(chunk)
           next()
         }
       }),
@@ -148,10 +159,18 @@ module.exports = class SteamCmd {
     }
 
     // TODO download steamCMD first if it doesn't exist yet
-    const steamcmdProcess = spawn(this.exePath)
+    const steamcmdProcess = pty.spawn(this.exePath, [], {
+      cols: 120,
+      rows: 30,
+      cwd: process.env.HOME,
+      env: process.env
+    })
+
+    // const steamcmdProcess = spawn(this.exePath)
     let currLine = ''
-    steamcmdProcess.stdout.on('data', (data) => {
-      currLine += data.toString().replace(/\r\n/g, '\n')
+
+    steamcmdProcess.on('data', (data) => {
+      currLine += stripAnsi(data).replace(/\r\n/g, '\n')
       let lines = currLine.split('\n')
       currLine = lines.pop()
 
@@ -168,18 +187,16 @@ module.exports = class SteamCmd {
           response.type = SteamCmd.MESSAGE_TYPES.LOGGED_IN
         }
 
-        ioStream.stdout.push(JSON.stringify(response))
+        ioStream.stdout.push(line)
       }
 
-      if (currLine === '') {
-        console.warn('CURRENT LINE IS EMPTY!')
-      }
+      // if (currLine === '') {
+      //   console.warn('CURRENT LINE IS EMPTY!')
+      // }
     })
 
-    steamcmdProcess.stderr.on('data', (data) => {
-      // TODO for some reason this doesn't work. Certain output is just not
-      // available on these channels
-      console.error(`stderr: ${data}`)
+    steamcmdProcess.on('error', (...args) => {
+      console.error(args)
     })
 
     steamcmdProcess.on('close', (code) => {
@@ -192,6 +209,8 @@ module.exports = class SteamCmd {
       // }
       console.log(`child process exited with code ${code}`)
     })
+
+    // steamcmdProcess.write(`& "${this.exePath}"\r`)
 
     return ioStream
   }
