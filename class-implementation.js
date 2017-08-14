@@ -1,4 +1,5 @@
 const path = require('path')
+// TODO use fs-extra instead.
 const fs = require('fs')
 const request = require('request')
 const _ = require('lodash')
@@ -16,19 +17,19 @@ const stream = require('stream')
 // because it gives us the full output
 const pty = require('node-pty')
 const stripAnsi = require('strip-ansi')
+const mkdirp = require('mkdirp')
 
-const defaultOptions = {
-  asyncDelay: 3000,
-  binDir: path.join(__dirname, 'steamcmd_bin'),
-  retries: 3,
-  retryDelay: 3000,
-  installDir: path.join(__dirname, 'install_dir')
-}
-
-// TODO use underscores for private functions
+// TODO use underscores for private functions and variables
 module.exports = class SteamCmd {
   constructor (options) {
-    this.options = _.defaults({}, options, defaultOptions)
+    this._defaultOptions = {
+      asyncDelay: 3000,
+      binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
+      retries: 3,
+      retryDelay: 3000,
+      installDir: path.join(__dirname, 'install_dir')
+    }
+    this._options = _.defaults({}, options, this._defaultOptions)
     this.steamcmdReady = false
     /**
      * Indicates who is currently logged in. An empty string means no has been
@@ -42,7 +43,15 @@ module.exports = class SteamCmd {
       case 'win32':
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip',
-          extractor: require('unzip'),
+          extract: (resolve, reject) => {
+            const {Extract} = require('unzip')
+
+            mkdirp.sync(this._options.binDir)
+
+            return new Extract({
+              path: this._options.binDir
+            }).on('finish', resolve).on('error', reject)
+          },
           exeName: 'steamcmd.exe',
           shellName: 'powershell.exe',
           echoExitCode: 'echo $lastexitcode'
@@ -51,7 +60,22 @@ module.exports = class SteamCmd {
       case 'darwin':
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz',
-          extractor: require('tar'),
+          extract: (resolve, reject) => {
+            const {Unpack} = require('tar')
+
+            mkdirp.sync(this._options.binDir)
+
+            return new Unpack({
+              cwd: this._options.binDir
+            }).on('close', () => {
+              try {
+                fs.accessSync(this.exePath, fs.constants.X_OK)
+                resolve()
+              } catch (ex) {
+                reject(ex)
+              }
+            })
+          },
           exeName: 'steamcmd.sh',
           shellName: 'bash',
           echoExitCode: 'echo $?'
@@ -60,7 +84,22 @@ module.exports = class SteamCmd {
       case 'linux':
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz',
-          extractor: require('tar'),
+          extract: (resolve, reject) => {
+            const {Unpack} = require('tar')
+
+            mkdirp.sync(this._options.binDir)
+
+            return new Unpack({
+              cwd: this._options.binDir
+            }).on('close', () => {
+              try {
+                fs.accessSync(this.exePath, fs.constants.X_OK)
+                resolve()
+              } catch (ex) {
+                reject(ex)
+              }
+            })
+          },
           exeName: 'steamcmd.sh',
           shellName: 'bash',
           echoExitCode: 'echo $?'
@@ -78,13 +117,13 @@ module.exports = class SteamCmd {
    * @type {string}
    */
   get exePath () {
-    return path.join(this.options.binDir, this.platformVars.exeName)
+    return path.join(this._options.binDir, this.platformVars.exeName)
   }
 
   /**
    * Returns a promise that resolves after ms milliseconds
    */
-  static promiseToWait (ms) {
+  static timeout (ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
@@ -93,41 +132,40 @@ module.exports = class SteamCmd {
    * the promise chained with retries and retry delays.
    */
   static async promiseToRetry (func, ...args) {
-    let retries = this.options.retries
+    let retries = this._options.retries
 
     while (retries--) {
       try {
         return await func(...args)
       } catch (e) {
         console.error(`Exception: "${e.message}", retrying, ${retries} retrie(s) left`)
-        await SteamCmd.promiseToWait(this.options.retryDelay)
+        await SteamCmd.timeout(this._options.retryDelay)
       }
     }
 
     throw new Error(`Promise failed after ${retries} retries`)
   }
 
-  async download () {
+  async _download () {
     return new Promise((resolve, reject) => {
       let req = request(this.platformVars.url)
       if (process.platform !== 'win32') {
         req = req.pipe(require('zlib').createGunzip())
       }
 
-      req.pipe(this.platformVars.extractor.Extract({
-        path: this.options.binDir
-      }).on('finish', resolve).on('error', reject))
+      req.pipe(this.platformVars.extract(resolve, reject))
     })
   }
 
   async downloadIfNeeded () {
-    return Promise.resolve()
-      .then(() => {
-        // The file must be accessible and executable
-        fs.accessSync(this.exePath, fs.constants.X_OK)
-      })
-      .then(() => {})
-      .catch(() => this.download)
+    try {
+      // The file must be accessible and executable
+      fs.accessSync(this.exePath, fs.constants.X_OK)
+      return
+    } catch (ex) {
+      // If the exe couldn't be found then download it
+      return this._download()
+    }
   }
 
   static get MESSAGE_TYPES () {
@@ -250,7 +288,7 @@ module.exports = class SteamCmd {
 
   // TODO allow the user to force the platform type
   async updateAppOnce (appId) {
-    if (!path.isAbsolute(this.options.installDir)) {
+    if (!path.isAbsolute(this._options.installDir)) {
       // throw an error immediately because it's invalid data, not a failure
       throw new TypeError('installDir must be an absolute path in updateApp')
     }
@@ -258,7 +296,7 @@ module.exports = class SteamCmd {
     let commands = [
       '@ShutdownOnFailedCommand 0',
       'login anonymous',
-      `force_install_dir ${this.options.installDir}`,
+      `force_install_dir ${this._options.installDir}`,
       'app_update ' + appId
     ]
     let proc = await this.run(commands)
@@ -279,7 +317,7 @@ module.exports = class SteamCmd {
 
   async prep () {
     await this.downloadIfNeeded()
-    await SteamCmd.promiseToWait(500)
+    await SteamCmd.timeout(500)
     return this.touch()
   }
 }

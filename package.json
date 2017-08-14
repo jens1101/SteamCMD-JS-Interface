@@ -4,6 +4,7 @@
   "description": "",
   "main": "class-implementation.js",
   "dependencies": {
+    "fs-extra": "^4.0.1",
     "lodash": "^4.17.4",
     "mkdirp": "^0.5.1",
     "node-pty": "^0.6.10",
@@ -17,7 +18,7 @@
     "chai": "^4.1.1"
   },
   "scripts": {
-    "test": "mocha ./**/*.spec.js"
+    "test": "mocha ./**/*.spec.js --reporter spec"
   },
   "keywords": [
     "node",
