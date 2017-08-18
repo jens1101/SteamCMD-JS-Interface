@@ -34,11 +34,11 @@ describe.skip('SteamCmd platform-dependant functionality', () => {
         await fs.remove(this.steam._options.binDir)
       })
 
-      describe('#downloadIfNeeded()', () => {
+      describe('#download()', () => {
         it('should download the steamCMD file for this OS', async function () {
           // Set the timeout to zero, because this can take a while.
           this.timeout(0)
-          await this.steam.downloadIfNeeded()
+          await this.steam.download()
 
           return fs.access(this.steam.exePath, fs.constants.X_OK)
         })
@@ -46,7 +46,7 @@ describe.skip('SteamCmd platform-dependant functionality', () => {
         it('should not download the steamCMD file if it already exists', async function () {
           // TODO I need a watcher here to make sure that the _download function
           // is not called at all!
-          await this.steam.downloadIfNeeded()
+          await this.steam.download()
 
           return fs.access(this.steam.exePath, fs.constants.X_OK)
         })

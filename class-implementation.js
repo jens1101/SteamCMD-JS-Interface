@@ -157,7 +157,7 @@ module.exports = class SteamCmd {
     })
   }
 
-  async downloadIfNeeded () {
+  async download () {
     try {
       // The file must be accessible and executable
       fs.accessSync(this.exePath, fs.constants.X_OK)
@@ -204,7 +204,6 @@ module.exports = class SteamCmd {
       env: process.env
     })
 
-    // const steamcmdProcess = spawn(this.exePath)
     let currLine = ''
 
     steamcmdProcess.on('data', (data) => {
@@ -316,7 +315,7 @@ module.exports = class SteamCmd {
   }
 
   async prep () {
-    await this.downloadIfNeeded()
+    await this.download()
     await SteamCmd._timeout(500)
     return this.touch()
   }
