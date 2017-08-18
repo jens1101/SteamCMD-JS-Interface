@@ -123,7 +123,7 @@ module.exports = class SteamCmd {
   /**
    * Returns a promise that resolves after ms milliseconds
    */
-  static timeout (ms) {
+  static _timeout (ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
@@ -131,15 +131,15 @@ module.exports = class SteamCmd {
    * Takes a func that returns a promise and a set of args to pass it. Returns
    * the promise chained with retries and retry delays.
    */
-  static async promiseToRetry (func, ...args) {
+  async _promiseToRetry (func, ...args) {
     let retries = this._options.retries
 
     while (retries--) {
       try {
         return await func(...args)
       } catch (e) {
-        console.error(`Exception: "${e.message}", retrying, ${retries} retrie(s) left`)
-        await SteamCmd.timeout(this._options.retryDelay)
+        console.warn(`Exception: "${e.message}", retrying, ${retries} retrie(s) left`)
+        await SteamCmd._timeout(this._options.retryDelay)
       }
     }
 
@@ -283,7 +283,7 @@ module.exports = class SteamCmd {
   }
 
   async getAppInfo (appID) {
-    return SteamCmd.promiseToRetry(this.getAppInfoOnce, appID)
+    return this._promiseToRetry(this.getAppInfoOnce, appID)
   }
 
   // TODO allow the user to force the platform type
@@ -312,12 +312,12 @@ module.exports = class SteamCmd {
   }
 
   async updateApp (appId) {
-    return SteamCmd.promiseToRetry(this.updateAppOnce, appId)
+    return this._promiseToRetry(this.updateAppOnce, appId)
   }
 
   async prep () {
     await this.downloadIfNeeded()
-    await SteamCmd.timeout(500)
+    await SteamCmd._timeout(500)
     return this.touch()
   }
 }
