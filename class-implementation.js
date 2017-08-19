@@ -1,21 +1,21 @@
 const path = require('path')
 // TODO use fs-extra instead.
-const fs = require('fs')
+const fs = require('fs-extra')
 const request = require('request')
 const _ = require('lodash')
 // TODO what does this even do? I would like to remove it because it hasn't been
 // updated in 4 years!
 const vdf = require('vdf')
 
+const tmp = require('tmp-promise')
+
 // TODO also try to remove unzip, tar, and zlib. They haven't been updated in
 // years and I'm sure that a native option exists
 
-// const { spawn } = require('child_process')
-const stream = require('stream')
+const { spawn } = require('child_process')
+// const stream = require('stream')
 
-// TODO use node-pty instead of child_process. This is apparantly a better option
-// because it gives us the full output
-const pty = require('node-pty')
+// const pty = require('node-pty')
 const stripAnsi = require('strip-ansi')
 const mkdirp = require('mkdirp')
 
@@ -30,13 +30,6 @@ module.exports = class SteamCmd {
       installDir: path.join(__dirname, 'install_dir')
     }
     this._options = _.defaults({}, options, this._defaultOptions)
-    this.steamcmdReady = false
-    /**
-     * Indicates who is currently logged in. An empty string means no has been
-     * logged in yet.
-     * @type {string}
-     */
-    this.loggedIn = ''
 
     // Some platform-dependent setup
     switch (process.platform) {
@@ -172,7 +165,7 @@ module.exports = class SteamCmd {
     return {
       MESSAGE: 0,
       STEAMCMD_READY: 1,
-      PASSWORD_REQUIRED: 2,
+      INVALID_PASSWORD: 2,
       STEAM_GUARD_CODE_REQUIRED: 3,
       LOGGED_IN: 4,
       UPDATING: 5,
@@ -180,76 +173,81 @@ module.exports = class SteamCmd {
     }
   }
 
-  run (username) {
-    // TODO I think a transform stream would be better suited in this case
-    // TODO should I maybe use a buffer instead and then decode as JS object?
-    const ioStream = {
-      stdin: new stream.Writable({
-        decodeStrings: false,
-        write (chunk, enc, next) {
-          steamcmdProcess.write(chunk)
-          next()
-        }
-      }),
-      stdout: new stream.Readable({
-        read () {}
+  async _run (commands) {
+    // We want these vars to be set to these values by default. They can still
+    // be overwritten by setting them in the `commands` array.
+    commands.unshift('@ShutdownOnFailedCommand 1')
+    commands.unshift('@NoPromptForPassword 1')
+
+    // Appending the 'quit' command to make sure that SteamCMD will quit.
+    commands.push('quit')
+
+    const commandFile = await tmp.file()
+
+    await fs.appendFile(commandFile.path, commands.join('\n') + '\n')
+
+    // TODO if we use a file then I think we can use child_process instead of
+    // node-pty
+    const steamcmdProcess = spawn(this.exePath, [
+      `+runscript ${commandFile.path}`
+    ])
+
+    return new Promise((resolve, reject) => {
+      let currLine = ''
+      const responses = []
+
+      steamcmdProcess.stdout.on('data', (data) => {
+        currLine += stripAnsi(data.toString('utf8')).replace(/\r\n/g, '\n')
+        let lines = currLine.split('\n')
+        currLine = lines.pop()
+
+        responses.push(...lines)
+
+        // if (line.includes('Loading Steam API...OK')) {
+        //   response.type = SteamCmd.MESSAGE_TYPES.STEAMCMD_READY
+        // } else if (line.includes('Waiting for user info...OK')) {
+        //   response.type = SteamCmd.MESSAGE_TYPES.LOGGED_IN
+        // }
+
+        // Note: Use double quotes for the username and password
+
+        // (Wrong password) Login Failure: Invalid Password
+        // (Code) FAILED with result code 5
+
+        // @NoPromptForPassword 1
+        // Login Failure: No cached credentials and @NoPromptForPassword is set, failing.
+
+        // (Steam Guard auth failure) This computer has not been authenticated for your account using Steam Guard.
+        // (Code) FAILED with result code 63
+        // I can use `set_steam_guard_code` to set the steam guard code
+
+        // Can't login, because someone is already logged in
+        // (Code) FAILED with result code 2
+
+        // Login Failure: No Connection
+        // (Code) FAILED with result code 3
       })
-    }
 
-    // TODO download steamCMD first if it doesn't exist yet
-    const steamcmdProcess = pty.spawn(this.exePath, [], {
-      cols: 120,
-      rows: 30,
-      cwd: process.env.HOME,
-      env: process.env
-    })
+      steamcmdProcess.stderr.on('data', (...data) => {
+        console.error(data)
+      })
 
-    let currLine = ''
-
-    steamcmdProcess.on('data', (data) => {
-      currLine += stripAnsi(data).replace(/\r\n/g, '\n')
-      let lines = currLine.split('\n')
-      currLine = lines.pop()
-
-      for (let line of lines) {
-        let response = {
-          type: SteamCmd.MESSAGE_TYPES.MESSAGE,
-          line
+      steamcmdProcess.on('close', (code) => {
+        if (code === 0 || code === 7) {
+          // Steamcmd will occasionally exit with code 7 and be fine.
+          // This usually happens with the first `_run` after `_download`.
+          resolve({
+            code,
+            responses
+          })
+        } else {
+          reject({
+            code,
+            responses
+          })
         }
-
-        if (line.includes('Loading Steam API...OK')) {
-          response.type = SteamCmd.MESSAGE_TYPES.STEAMCMD_READY
-          this.steamcmdReady = true
-        } else if (line.includes('Waiting for user info...OK')) {
-          response.type = SteamCmd.MESSAGE_TYPES.LOGGED_IN
-        }
-
-        ioStream.stdout.push(line)
-      }
-
-      // if (currLine === '') {
-      //   console.warn('CURRENT LINE IS EMPTY!')
-      // }
+      })
     })
-
-    steamcmdProcess.on('error', (...args) => {
-      console.error(args)
-    })
-
-    steamcmdProcess.on('close', (code) => {
-      // if (code === 0 || code === 7) {
-      //   // Steamcmd will occasionally exit with code 7 and be fine.
-      //   // This usually happens the first run() after download().
-      //   resolve(result)
-      // } else {
-      //   reject(result)
-      // }
-      console.log(`child process exited with code ${code}`)
-    })
-
-    // steamcmdProcess.write(`& "${this.exePath}"\r`)
-
-    return ioStream
   }
 
   async touch () {
