@@ -1,21 +1,22 @@
 const path = require('path')
-// TODO use fs-extra instead.
 const fs = require('fs-extra')
 const request = require('request')
+
+// TODO this is used only once. Maybe I should just import that one required
+// function or just write it myself...
 const _ = require('lodash')
-// TODO what does this even do? I would like to remove it because it hasn't been
-// updated in 4 years!
+
+/**
+ * VDF is a data format that valve uses. This package can convert between JSON
+ * and VDF.
+ */
 const vdf = require('vdf')
 
 const tmp = require('tmp-promise')
 
-// TODO also try to remove unzip, tar, and zlib. They haven't been updated in
-// years and I'm sure that a native option exists
-
 const { spawn } = require('child_process')
 const { Readable } = require('stream')
 
-// const pty = require('node-pty')
 const stripAnsi = require('strip-ansi')
 const mkdirp = require('mkdirp')
 
@@ -40,6 +41,8 @@ module.exports = class SteamCmd {
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip',
           extract: (resolve, reject) => {
+            // TODO use "yauzl" instead of "unzip". It is more regularly updated and more
+            // popular
             const {Extract} = require('unzip')
 
             mkdirp.sync(this._options.binDir)
@@ -229,8 +232,9 @@ module.exports = class SteamCmd {
         }
       })
 
-      steamcmdProcess.stderr.on('data', (...data) => {
-        console.error(data)
+      steamcmdProcess.on('error', (err) => {
+        outputStream.emit('error', err)
+        outputStream.destroy()
       })
 
       steamcmdProcess.on('close', (code) => {
@@ -247,10 +251,21 @@ module.exports = class SteamCmd {
   }
 
   async touch () {
-    return this.run([])
+    return new Promise((resolve, reject) => {
+      const stream = this._run([])
+
+      stream.on('close', () => { resolve() })
+      stream.on('error', (err) => { reject(err) })
+    })
   }
 
   async getAppInfoOnce (appID) {
+    // TODO it may be better to get app info via Steam's web API. In this way
+    // I can cut down on a dependency and I don't need to spin up a new SteamCMD
+    // instance.
+    // Ok, well it turns out that you need a auth key before you can the web API.
+    // But I'm sure there has to be a way to just get the app info.
+
     let command = [
       'login anonymous',
       'app_info_request ' + appID,
