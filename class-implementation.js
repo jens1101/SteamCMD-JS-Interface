@@ -27,7 +27,10 @@ module.exports = class SteamCmd {
       binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
       retries: 3,
       retryDelay: 3000,
-      installDir: path.join(__dirname, 'install_dir')
+      installDir: path.join(__dirname, 'install_dir'),
+      username: 'anonymous',
+      password: '',
+      steamGuardCode: ''
     }
     this._options = _.defaults({}, options, this._defaultOptions)
 
@@ -113,6 +116,16 @@ module.exports = class SteamCmd {
     return path.join(this._options.binDir, this.platformVars.exeName)
   }
 
+  get _loginStr () {
+    return `login "${this._options.username}" "${this._options.password}" "${this._options.steamGuardCode}"`
+  }
+
+  setOptions (options) {
+    for (let key of Object.keys(options)) {
+      this._options[key] = options[key]
+    }
+  }
+
   /**
    * Returns a promise that resolves after ms milliseconds
    */
@@ -192,7 +205,10 @@ module.exports = class SteamCmd {
       `+runscript ${commandFile.path}`
     ])
 
-    return new Promise((resolve, reject) => {
+    // TODO the annoying thing about this is that something such as a download
+    // can take ages to finish. It would be better to have a stream of data
+    // instead.
+    return new Promise(resolve => {
       let currLine = ''
       const responses = []
 
@@ -233,19 +249,12 @@ module.exports = class SteamCmd {
       })
 
       steamcmdProcess.on('close', (code) => {
-        if (code === 0 || code === 7) {
-          // Steamcmd will occasionally exit with code 7 and be fine.
-          // This usually happens with the first `_run` after `_download`.
-          resolve({
-            code,
-            responses
-          })
-        } else {
-          reject({
-            code,
-            responses
-          })
-        }
+        // We always resolve. Whatever calls this function needs to action on the
+        // response code.
+        resolve({
+          code,
+          responses
+        })
       })
     })
   }
