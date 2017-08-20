@@ -13,7 +13,7 @@ const tmp = require('tmp-promise')
 // years and I'm sure that a native option exists
 
 const { spawn } = require('child_process')
-// const stream = require('stream')
+const { Readable } = require('stream')
 
 // const pty = require('node-pty')
 const stripAnsi = require('strip-ansi')
@@ -174,74 +174,59 @@ module.exports = class SteamCmd {
     }
   }
 
-  static get MESSAGE_TYPES () {
+  static get EXIT_CODES () {
     return {
-      MESSAGE: 0,
-      STEAMCMD_READY: 1,
-      INVALID_PASSWORD: 2,
-      STEAM_GUARD_CODE_REQUIRED: 3,
-      LOGGED_IN: 4,
-      UPDATING: 5,
-      UPDATED: 6
+      NO_ERROR: 0,
+      UNKNOWN_ERROR: 1,
+      ALREADY_LOGGED_IN: 2,
+      NO_CONNECTION: 3,
+      INVALID_PASSWORD: 5,
+      STEAM_GUARD_CODE_REQUIRED: 63
     }
   }
 
-  async _run (commands) {
+  _run (commands) {
     // We want these vars to be set to these values by default. They can still
     // be overwritten by setting them in the `commands` array.
     commands.unshift('@ShutdownOnFailedCommand 1')
     commands.unshift('@NoPromptForPassword 1')
-
     // Appending the 'quit' command to make sure that SteamCMD will quit.
     commands.push('quit')
 
-    const commandFile = await tmp.file()
+    const outputStream = new Readable({
+      encoding: 'utf8',
+      read () {}
+    })
 
-    await fs.appendFile(commandFile.path, commands.join('\n') + '\n')
+    tmp.file().then(commandFile => {
+      return fs.appendFile(commandFile.path, commands.join('\n') + '\n')
+        .then(() => commandFile)
+    }).then(commandFile => {
+      const steamcmdProcess = spawn(this.exePath, [
+        `+runscript ${commandFile.path}`
+      ])
 
-    // TODO if we use a file then I think we can use child_process instead of
-    // node-pty
-    const steamcmdProcess = spawn(this.exePath, [
-      `+runscript ${commandFile.path}`
-    ])
-
-    // TODO the annoying thing about this is that something such as a download
-    // can take ages to finish. It would be better to have a stream of data
-    // instead.
-    return new Promise(resolve => {
       let currLine = ''
-      const responses = []
+      let exitCode = SteamCmd.EXIT_CODES.NO_ERROR
 
       steamcmdProcess.stdout.on('data', (data) => {
         currLine += stripAnsi(data.toString('utf8')).replace(/\r\n/g, '\n')
         let lines = currLine.split('\n')
         currLine = lines.pop()
 
-        responses.push(...lines)
+        for (let line of lines) {
+          if (line.includes('FAILED with result code 5')) {
+            exitCode = SteamCmd.EXIT_CODES.INVALID_PASSWORD
+          } else if (line.includes('FAILED with result code 63')) {
+            exitCode = SteamCmd.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED
+          } else if (line.includes('FAILED with result code 2')) {
+            exitCode = SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN
+          } else if (line.includes('FAILED with result code 3')) {
+            exitCode = SteamCmd.EXIT_CODES.NO_CONNECTION
+          }
 
-        // if (line.includes('Loading Steam API...OK')) {
-        //   response.type = SteamCmd.MESSAGE_TYPES.STEAMCMD_READY
-        // } else if (line.includes('Waiting for user info...OK')) {
-        //   response.type = SteamCmd.MESSAGE_TYPES.LOGGED_IN
-        // }
-
-        // Note: Use double quotes for the username and password
-
-        // (Wrong password) Login Failure: Invalid Password
-        // (Code) FAILED with result code 5
-
-        // @NoPromptForPassword 1
-        // Login Failure: No cached credentials and @NoPromptForPassword is set, failing.
-
-        // (Steam Guard auth failure) This computer has not been authenticated for your account using Steam Guard.
-        // (Code) FAILED with result code 63
-        // I can use `set_steam_guard_code` to set the steam guard code
-
-        // Can't login, because someone is already logged in
-        // (Code) FAILED with result code 2
-
-        // Login Failure: No Connection
-        // (Code) FAILED with result code 3
+          outputStream.push(line)
+        }
       })
 
       steamcmdProcess.stderr.on('data', (...data) => {
@@ -249,14 +234,16 @@ module.exports = class SteamCmd {
       })
 
       steamcmdProcess.on('close', (code) => {
-        // We always resolve. Whatever calls this function needs to action on the
-        // response code.
-        resolve({
-          code,
-          responses
-        })
+        if (exitCode === SteamCmd.EXIT_CODES.NO_ERROR) {
+          exitCode = code
+        }
+
+        outputStream.emit('close', exitCode)
+        outputStream.destroy()
       })
     })
+
+    return outputStream
   }
 
   async touch () {
