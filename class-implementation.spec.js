@@ -1,4 +1,4 @@
-/* global describe, before, after, it */
+/* global describe, before, beforeEach, after, it */
 
 const {expect} = require('chai')
 const fs = require('fs-extra')
@@ -148,6 +148,38 @@ describe('Static functions', () => {
         // If retries = maxRetries then this test passes
         return
       }
+    })
+  })
+})
+
+describe('Instance functions', () => {
+  describe('#touch()', () => {
+    beforeEach(function () {
+      this.steam = new SteamCmd()
+    })
+
+    it('should succeed when SteamCMD is installed', async function () {
+      this.timeout(0)
+
+      await this.steam.download()
+
+      // Note: this can take a very long time, especially if the binaries had to
+      // be freshly downloaded. This is because SteamCMD will first do an update
+      // before running the command.
+      return await this.steam.touch()
+    })
+
+    it('should fail when SteamCMD is not installed', async function () {
+      await fs.remove(this.steam._options.binDir)
+
+      return this.steam.touch()
+        .then(() => {
+          // The test fails when the function call resolves, because SteamCMD
+          // shouldn't work when the exe is deleted.
+          throw new Error("StremCMD can't possibly work without the binaries")
+        }, () => {
+          // The test passes when the function call rejects.
+        })
     })
   })
 })

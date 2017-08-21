@@ -250,6 +250,11 @@ module.exports = class SteamCmd {
     return outputStream
   }
 
+  /**
+   * Note: this can take a very long time, especially if the binaries had to
+   * be freshly downloaded. This is because SteamCMD will first do an update
+   * before running the command.
+   */
   async touch () {
     return new Promise((resolve, reject) => {
       const stream = this._run([])
