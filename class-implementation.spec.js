@@ -153,7 +153,7 @@ describe('Static functions', () => {
 })
 
 describe('Instance functions', () => {
-  describe('#touch()', () => {
+  describe('#_touch()', () => {
     beforeEach(function () {
       this.steam = new SteamCmd()
     })
@@ -166,13 +166,13 @@ describe('Instance functions', () => {
       // Note: this can take a very long time, especially if the binaries had to
       // be freshly downloaded. This is because SteamCMD will first do an update
       // before running the command.
-      return await this.steam.touch()
+      return await this.steam._touch()
     })
 
     it('should fail when SteamCMD is not installed', async function () {
       await fs.remove(this.steam._options.binDir)
 
-      return this.steam.touch()
+      return this.steam._touch()
         .then(() => {
           // The test fails when the function call resolves, because SteamCMD
           // shouldn't work when the exe is deleted.

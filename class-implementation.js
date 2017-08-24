@@ -6,12 +6,6 @@ const request = require('request')
 // function or just write it myself...
 const _ = require('lodash')
 
-/**
- * VDF is a data format that valve uses. This package can convert between JSON
- * and VDF.
- */
-const vdf = require('vdf')
-
 const tmp = require('tmp-promise')
 
 const { spawn } = require('child_process')
@@ -169,7 +163,7 @@ module.exports = class SteamCmd {
   async download () {
     try {
       // The file must be accessible and executable
-      fs.accessSync(this.exePath, fs.constants.X_OK)
+      await fs.access(this.exePath, fs.constants.X_OK)
       return
     } catch (ex) {
       // If the exe couldn't be found then download it
@@ -255,7 +249,7 @@ module.exports = class SteamCmd {
    * be freshly downloaded. This is because SteamCMD will first do an update
    * before running the command.
    */
-  async touch () {
+  async _touch () {
     return new Promise((resolve, reject) => {
       const stream = this._run([])
 
@@ -264,43 +258,8 @@ module.exports = class SteamCmd {
     })
   }
 
-  async getAppInfoOnce (appID) {
-    // TODO it may be better to get app info via Steam's web API. In this way
-    // I can cut down on a dependency and I don't need to spin up a new SteamCMD
-    // instance.
-    // Ok, well it turns out that you need a auth key before you can the web API.
-    // But I'm sure there has to be a way to just get the app info.
-
-    let command = [
-      'login anonymous',
-      'app_info_request ' + appID,
-      'wait',
-      'app_info_print ' + appID
-    ]
-    let proc = await this.run(command)
-
-    // extract & parse info
-    let infoTextStart = proc.stdout.indexOf('"' + appID + '"')
-    let infoTextEnd = proc.stdout.indexOf('Steam>quit')
-    if (infoTextStart === -1 || infoTextEnd === -1) {
-      throw new TypeError('getAppInfo() failed to receive expected data.')
-    }
-
-    let infoText = proc.stdout.substr(infoTextStart, infoTextEnd - infoTextStart)
-    let result = vdf.parse(infoText)[appID]
-    if (Object.keys(result).length === 0) {
-      throw new TypeError('getAppInfo() received empty app data.')
-    }
-
-    return result
-  }
-
-  async getAppInfo (appID) {
-    return this._promiseToRetry(this.getAppInfoOnce, appID)
-  }
-
   // TODO allow the user to force the platform type
-  async updateAppOnce (appId) {
+  async _updateAppOnce (appId) {
     if (!path.isAbsolute(this._options.installDir)) {
       // throw an error immediately because it's invalid data, not a failure
       throw new TypeError('installDir must be an absolute path in updateApp')
@@ -325,12 +284,12 @@ module.exports = class SteamCmd {
   }
 
   async updateApp (appId) {
-    return this._promiseToRetry(this.updateAppOnce, appId)
+    return this._promiseToRetry(this._updateAppOnce, appId)
   }
 
   async prep () {
     await this.download()
     await SteamCmd._timeout(500)
-    return this.touch()
+    return this._touch()
   }
 }
