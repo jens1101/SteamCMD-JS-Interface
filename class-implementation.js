@@ -14,14 +14,22 @@ const { Readable } = require('stream')
 const stripAnsi = require('strip-ansi')
 const mkdirp = require('mkdirp')
 
-// TODO use underscores for private functions and variables
+const treeKill = require('tree-kill')
+
+const EXIT_CODES = {
+  PROCESS_KILLED: null,
+  NO_ERROR: 0,
+  UNKNOWN_ERROR: 1,
+  ALREADY_LOGGED_IN: 2,
+  NO_CONNECTION: 3,
+  INVALID_PASSWORD: 5,
+  STEAM_GUARD_CODE_REQUIRED: 63
+}
+
 module.exports = class SteamCmd {
   constructor (options) {
     this._defaultOptions = {
-      asyncDelay: 3000,
       binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
-      retries: 3,
-      retryDelay: 3000,
       installDir: path.join(__dirname, 'install_dir'),
       username: 'anonymous',
       password: '',
@@ -113,40 +121,24 @@ module.exports = class SteamCmd {
     return path.join(this._options.binDir, this.platformVars.exeName)
   }
 
-  get _loginStr () {
-    return `login "${this._options.username}" "${this._options.password}" "${this._options.steamGuardCode}"`
+  _getLoginStr () {
+    const login = ['login', `"${this._options.username}"`]
+
+    if (this._options.password) {
+      login.push([`"${this._options.password}"`])
+    }
+
+    if (this._options.steamGuardCode) {
+      login.push(`"${this._options.steamGuardCode}"`)
+    }
+
+    return login.join(' ')
   }
 
   setOptions (options) {
     for (let key of Object.keys(options)) {
       this._options[key] = options[key]
     }
-  }
-
-  /**
-   * Returns a promise that resolves after ms milliseconds
-   */
-  static _timeout (ms) {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-
-  /**
-   * Takes a func that returns a promise and a set of args to pass it. Returns
-   * the promise chained with retries and retry delays.
-   */
-  async _promiseToRetry (func, ...args) {
-    let retries = this._options.retries
-
-    while (retries--) {
-      try {
-        return await func(...args)
-      } catch (e) {
-        console.warn(`Exception: "${e.message}", retrying, ${retries} retrie(s) left`)
-        await SteamCmd._timeout(this._options.retryDelay)
-      }
-    }
-
-    throw new Error(`Promise failed after ${retries} retries`)
   }
 
   async _download () {
@@ -172,13 +164,27 @@ module.exports = class SteamCmd {
   }
 
   static get EXIT_CODES () {
-    return {
-      NO_ERROR: 0,
-      UNKNOWN_ERROR: 1,
-      ALREADY_LOGGED_IN: 2,
-      NO_CONNECTION: 3,
-      INVALID_PASSWORD: 5,
-      STEAM_GUARD_CODE_REQUIRED: 63
+    return EXIT_CODES
+  }
+
+  static getErrorMessage (exitCode) {
+    switch (exitCode) {
+      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
+        return 'The SteamCMD process was killed prematurely'
+      case SteamCmd.EXIT_CODES.NO_ERROR:
+        return 'No error'
+      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
+        return 'An unknown error occurred'
+      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
+        return 'A user was already logged into StremCMD'
+      case SteamCmd.EXIT_CODES.NO_CONNECTION:
+        return 'SteamCMD cannot connect to the internet'
+      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
+        return 'Invalid password'
+      case SteamCmd.EXIT_CODES.TEAM_GUARD_CODE_REQUIRED:
+        return 'A Steam Guard code was required to log in'
+      default:
+        return `An unknown error occurred. Exit code: ${exitCode}`
     }
   }
 
@@ -190,10 +196,13 @@ module.exports = class SteamCmd {
     // Appending the 'quit' command to make sure that SteamCMD will quit.
     commands.push('quit')
 
-    const outputStream = new Readable({
-      encoding: 'utf8',
-      read () {}
-    })
+    const runObj = {
+      outputStream: new Readable({
+        encoding: 'utf8',
+        read () {}
+      }),
+      killSteamCmd: () => {}
+    }
 
     tmp.file().then(commandFile => {
       return fs.appendFile(commandFile.path, commands.join('\n') + '\n')
@@ -205,6 +214,18 @@ module.exports = class SteamCmd {
 
       let currLine = ''
       let exitCode = SteamCmd.EXIT_CODES.NO_ERROR
+
+      runObj.killSteamCmd = () => {
+        treeKill(steamcmdProcess.pid, 'SIGTERM', (err) => {
+          if (err) {
+            runObj.outputStream.emit('error', err)
+            runObj.outputStream.destroy()
+          }
+
+          // If no error occurred then this will trigger the "close" event on
+          // the SteamCMD process; this will then wrap-up everything.
+        })
+      }
 
       steamcmdProcess.stdout.on('data', (data) => {
         currLine += stripAnsi(data.toString('utf8')).replace(/\r\n/g, '\n')
@@ -222,13 +243,13 @@ module.exports = class SteamCmd {
             exitCode = SteamCmd.EXIT_CODES.NO_CONNECTION
           }
 
-          outputStream.push(line)
+          runObj.outputStream.push(line)
         }
       })
 
       steamcmdProcess.on('error', (err) => {
-        outputStream.emit('error', err)
-        outputStream.destroy()
+        runObj.outputStream.emit('error', err)
+        runObj.outputStream.destroy()
       })
 
       steamcmdProcess.on('close', (code) => {
@@ -236,12 +257,12 @@ module.exports = class SteamCmd {
           exitCode = code
         }
 
-        outputStream.emit('close', exitCode)
-        outputStream.destroy()
+        runObj.outputStream.emit('close', exitCode)
+        runObj.outputStream.destroy()
       })
     })
 
-    return outputStream
+    return runObj
   }
 
   /**
@@ -251,45 +272,42 @@ module.exports = class SteamCmd {
    */
   async _touch () {
     return new Promise((resolve, reject) => {
-      const stream = this._run([])
+      const {outputStream} = this._run([])
 
-      stream.on('close', () => { resolve() })
-      stream.on('error', (err) => { reject(err) })
+      outputStream.on('close', () => { resolve() })
+      outputStream.on('error', (err) => { reject(err) })
     })
   }
 
-  // TODO allow the user to force the platform type
-  async _updateAppOnce (appId) {
+  // TODO add the ability to stop a download. Currently this is not possible.
+  updateApp (appId, platformType = null, platformBitness = null) {
     if (!path.isAbsolute(this._options.installDir)) {
       // throw an error immediately because it's invalid data, not a failure
-      throw new TypeError('installDir must be an absolute path in updateApp')
+      throw new TypeError('installDir must be an absolute path to update an app')
     }
 
-    let commands = [
-      '@ShutdownOnFailedCommand 0',
-      'login anonymous',
-      `force_install_dir ${this._options.installDir}`,
+    const commands = [
+      this._getLoginStr(),
+      `force_install_dir "${this._options.installDir}"`,
       'app_update ' + appId
     ]
-    let proc = await this.run(commands)
 
-    if (proc.stdout.indexOf(`Success! App '${appId}' fully installed`) !== -1) {
-      return true
-    } else if (proc.stdout.indexOf(`Success! App '${appId}' already up to date`) !== -1) {
-      return false
-    } else {
-      let err = proc.stdout.split('\n').slice(-2)[0]
-      throw new Error(`Unable to update ${appId}. SteamCMD error was: "${err}"`)
+    if (platformBitness === 32 ||
+        platformBitness === 64) {
+      commands.unshift('@sSteamCmdForcePlatformBitness ' + platformBitness)
     }
-  }
 
-  async updateApp (appId) {
-    return this._promiseToRetry(this._updateAppOnce, appId)
+    if (platformType === 'windows' ||
+        platformType === 'macos' ||
+        platformType === 'linux') {
+      commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
+    }
+
+    return this._run(commands)
   }
 
   async prep () {
     await this.download()
-    await SteamCmd._timeout(500)
     return this._touch()
   }
 }

@@ -4,7 +4,7 @@ const {expect} = require('chai')
 const fs = require('fs-extra')
 const SteamCmd = require('./class-implementation')
 
-describe.skip('SteamCmd platform-dependant functionality', () => {
+describe('SteamCmd platform-dependant functionality', () => {
   /**
    * All the platforms to be tested
    * @type {string[]}
@@ -76,83 +76,20 @@ describe.skip('SteamCmd platform-dependant functionality', () => {
   })
 })
 
-describe('Static functions', () => {
-  /**
-  * Tests whether or not a promise finishes within the defined timeout.
-  * @param {Function} promiseFn A function that returns a promise. This will
-  * be the promise that this function will measure.
-  * @param {number} timeout The timeout within which the promise must finish
-  * @param {number} [marginOfError=0.05] The ratio of the original timeout
-  * that will be given as an acceptible marin of error. The default is
-  * 0.05 = 5%.
-  */
-  async function testPromiseTimeout (promiseFn, timeout, marginOfError = 0.05) {
-    /**
-    * The actual margin of error in ms, based on the given timeout. This has
-    * min value of 3ms, because promises don't tend to be any more accurate
-    * than that; especially for very short-running promises.
-    * @type {number}
-    */
-    const actualMargin = Math.max(timeout * marginOfError, 3)
-    const startTime = process.hrtime()
-
-    await promiseFn()
-
-    const endTime = process.hrtime()
-    const elapsedTime = ((endTime[0] * 1000 + endTime[1] / 1000000) -
-    (startTime[0] * 1000 + startTime[1] / 1000000))
-    const hasPassed = elapsedTime < timeout + actualMargin &&
-    elapsedTime > timeout - actualMargin
-
-    if (!hasPassed) {
-      throw new Error(`Promise finished in ${elapsedTime}ms, insted of ${timeout}ms`)
-    }
-  }
-
-  describe('#_timeout()', () => {
-    it('should resolve after the given timeout (in ms)', function () {
-      return Promise.all([
-        testPromiseTimeout(() => SteamCmd._timeout(5), 5),
-        testPromiseTimeout(() => SteamCmd._timeout(200), 200),
-        testPromiseTimeout(() => SteamCmd._timeout(1000), 1000)
-      ])
-    })
-  })
-
-  describe('#_promiseToRetry()', () => {
-    it('should fail after retrying too many times', async function () {
-      this.timeout(2500)
-
-      const maxRetries = 4
-      let retries = 0
-      const retryDelay = 500
-      const steam = new SteamCmd({retries: maxRetries, retryDelay})
-
-      try {
-        await steam._promiseToRetry(() => {
-          retries++
-          throw new Error('Test error')
-        })
-
-        return Promise.reject(new Error(`_promiseToRetry did not throw an error
-          after ${maxRetries} retries`))
-      } catch (ex) {
-        if (retries < maxRetries) {
-          throw new Error(`_promiseToRetry failed too early after ${retries}
-            retries instead of ${maxRetries} retries`)
-        } else if (retries > maxRetries) {
-          throw new Error(`_promiseToRetry failed too late after ${retries}
-            retries instead of ${maxRetries} retries`)
-        }
-
-        // If retries = maxRetries then this test passes
-        return
-      }
-    })
-  })
-})
-
 describe('Instance functions', () => {
+  describe('#prep', () => {
+    beforeEach(function () {
+      this.steam = new SteamCmd()
+    })
+
+    it('should successfully download StremCMD and use it', async function () {
+      this.timeout(0)
+
+      await fs.remove(this.steam._options.binDir)
+      return this.steam.prep()
+    })
+  })
+
   describe('#_touch()', () => {
     beforeEach(function () {
       this.steam = new SteamCmd()
@@ -166,7 +103,7 @@ describe('Instance functions', () => {
       // Note: this can take a very long time, especially if the binaries had to
       // be freshly downloaded. This is because SteamCMD will first do an update
       // before running the command.
-      return await this.steam._touch()
+      return this.steam._touch()
     })
 
     it('should fail when SteamCMD is not installed', async function () {
@@ -182,4 +119,6 @@ describe('Instance functions', () => {
         })
     })
   })
+
+  // TODO add testing of downloading and killing a SteamCmd process
 })
