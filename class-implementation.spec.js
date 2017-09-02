@@ -34,11 +34,11 @@ describe('SteamCmd platform-dependant functionality', () => {
         await fs.remove(this.steam._options.binDir)
       })
 
-      describe('#download()', () => {
+      describe('#downloadSteamCmd()', () => {
         it('should download the steamCMD file for this OS', async function () {
           // Set the timeout to zero, because this can take a while.
           this.timeout(0)
-          await this.steam.download()
+          await this.steam.downloadSteamCmd()
 
           return fs.access(this.steam.exePath, fs.constants.X_OK)
         })
@@ -46,7 +46,7 @@ describe('SteamCmd platform-dependant functionality', () => {
         it('should not download the steamCMD file if it already exists', async function () {
           // TODO I need a watcher here to make sure that the _download function
           // is not called at all!
-          await this.steam.download()
+          await this.steam.downloadSteamCmd()
 
           return fs.access(this.steam.exePath, fs.constants.X_OK)
         })
@@ -77,6 +77,31 @@ describe('SteamCmd platform-dependant functionality', () => {
 })
 
 describe('Instance functions', () => {
+  describe('construction', () => {
+    it('you should be able to overwrite all default options', function () {
+      const options = {}
+      for (const key of Object.keys(SteamCmd.DEFAULT_OPTIONS)) {
+        options[key] = Math.random()
+      }
+
+      const steam = new SteamCmd(options)
+      expect(steam._options).to.deep.equal(options)
+    })
+  })
+
+  describe('#setOptions', () => {
+    it('you should be able to overwrite all default options', function () {
+      const steam = new SteamCmd()
+
+      for (const key of Object.keys(SteamCmd.DEFAULT_OPTIONS)) {
+        const val = Math.random()
+        steam.setOptions({[key]: val})
+
+        expect(steam._options[key]).to.equal(val)
+      }
+    })
+  })
+
   describe('#prep', () => {
     beforeEach(function () {
       this.steam = new SteamCmd()
@@ -98,7 +123,7 @@ describe('Instance functions', () => {
     it('should succeed when SteamCMD is installed', async function () {
       this.timeout(0)
 
-      await this.steam.download()
+      await this.steam.downloadSteamCmd()
 
       // Note: this can take a very long time, especially if the binaries had to
       // be freshly downloaded. This is because SteamCMD will first do an update
@@ -120,5 +145,19 @@ describe('Instance functions', () => {
     })
   })
 
-  // TODO add testing of downloading and killing a SteamCmd process
+  // TODO add tests for getLoginStr
+
+  // TODO add tests for run
+
+  // TODO add tests for updateApp
+  // This requires:
+  // - The default download respects your current platform and bitness
+  // - Fails in some way when you try to download an app that you don't have
+  // access to.
+  // - Fails in some way when you try to download an app that is not available
+  // on your chosen platform and bitness
+  // - Fails in some way when you try to download an app that doesn't exist.
+  // - The downloader respects your current username, pass, steam guard code,
+  // platform, and bitness
+  // - You can kill the current SteamCMD process.
 })

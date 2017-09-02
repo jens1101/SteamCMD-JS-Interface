@@ -5,7 +5,7 @@
   "main": "class-implementation.js",
   "dependencies": {
     "fs-extra": "^4.0.1",
-    "lodash": "^4.17.4",
+    "lodash.defaults": "^4.2.0",
     "mkdirp": "^0.5.1",
     "request": "^2.81.0",
     "strip-ansi": "^4.0.0",

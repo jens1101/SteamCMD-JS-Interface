@@ -1,21 +1,31 @@
 const path = require('path')
 const fs = require('fs-extra')
 const request = require('request')
-
-// TODO this is used only once. Maybe I should just import that one required
-// function or just write it myself...
-const _ = require('lodash')
-
+const defaults = require('lodash.defaults')
 const tmp = require('tmp-promise')
-
 const { spawn } = require('child_process')
 const { Readable } = require('stream')
-
 const stripAnsi = require('strip-ansi')
 const mkdirp = require('mkdirp')
-
 const treeKill = require('tree-kill')
 
+/**
+ * These are all exit codes that SteamCMD can use. This is not an exhaustive
+ * list yet.
+ * @namespace
+ * @property {null} PROCESS_KILLED Indicates that the SteamCMD process was
+ * forcefully killed.
+ * @property {number} NO_ERROR Indicates that SteamCMD exited normally.
+ * @property {number} UNKNOWN_ERROR Indicates that some unknown error occurred.
+ * @property {number} ALREADY_LOGGED_IN Indicates that the user attemted to
+ * login while another user was already logged in.
+ * @property {number} NO_CONNECTION Indicates that SteamCMD has no connection to
+ * the internet.
+ * @property {number} INVALID_PASSWORD Indicates that an incorrect password was
+ * proveded.
+ * @property {number} STEAM_GUARD_CODE_REQUIRED Indicated that a Steam guard
+ * code is required before the login can finish.
+ */
 const EXIT_CODES = {
   PROCESS_KILLED: null,
   NO_ERROR: 0,
@@ -26,16 +36,79 @@ const EXIT_CODES = {
   STEAM_GUARD_CODE_REQUIRED: 63
 }
 
+/**
+ * All the options that are used by SteamCmd by default.
+ * @namespace
+ * @property {string} binDir The directory into which the SteamCMD binaries will
+ * be downloaded.
+ * @property {string} installDir The directory into which the steam apps will be
+ * downloaded.
+ * *Note*: If you have the Steam client installed then you can set this to it's
+ * default library folder (default on Windows is 'C:\Program Files (x86)\Steam\').
+ * This will ensure that Steam will recognise the game on startup and you don't
+ * need to manually copy anything.
+ * @property {string} username The username to use for login.
+ * @property {string} password The password to use for login.
+ * @property {string} steamGuardCode The steam guard code to use for login.
+ */
+const DEFAULT_OPTIONS = {
+  binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
+  installDir: path.join(__dirname, 'install_dir'),
+  username: 'anonymous',
+  password: '',
+  steamGuardCode: ''
+}
+
+/**
+ * This class acts as an intermediate layer between SteamCMD and NodeJS. It
+ * allows you to download the SteamCMD binaries, login with a custom user
+ * acocunt, update an app, etc.
+ */
 module.exports = class SteamCmd {
-  constructor (options) {
-    this._defaultOptions = {
-      binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
-      installDir: path.join(__dirname, 'install_dir'),
-      username: 'anonymous',
-      password: '',
-      steamGuardCode: ''
-    }
-    this._options = _.defaults({}, options, this._defaultOptions)
+  /**
+   * @typedef {Object} RunObj
+   * @property {Readable} outputStream A readable stream that returns the output
+   * of the SteamCMD process. It also closes with the correct exit code.
+   * @see EXIT_CODES
+   * @property {Function} killSteamCmd A function that, once called, kills the
+   * SteamCMD process and destroys `outputStream`.
+   */
+
+  /**
+   * Simple accessor that makes the exit codes a static variable.
+   * @see EXIT_CODES
+   * @type {Object}
+   */
+  static get EXIT_CODES () {
+    return EXIT_CODES
+  }
+
+  /**
+   * Simple accessor that makes the default options a static variable.
+   * @see DEFAULT_OPTIONS
+   * @type {Object}
+   */
+  static get DEFAULT_OPTIONS () {
+    return DEFAULT_OPTIONS
+  }
+
+  /**
+   * The path to the executable. This is defined as a getter, as opposed to a
+   * variable, because the user can change the bin directory and we want that
+   * change to propagate.
+   * @type {string}
+   */
+  get exePath () {
+    return path.join(this._options.binDir, this.platformVars.exeName)
+  }
+
+  /**
+   * Constucts a new SteamCmd object.
+   * @param {Object} [options={}] The operational options that SteamCmd should
+   * use. Defaults are provided.
+   */
+  constructor (options = {}) {
+    this._options = defaults({}, options, SteamCmd.DEFAULT_OPTIONS)
 
     // Some platform-dependent setup
     switch (process.platform) {
@@ -112,16 +185,27 @@ module.exports = class SteamCmd {
   }
 
   /**
-   * The path to the executable. This is defined as a getter, as opposed to a
-   * variable, because the user can change the bin directory and we want that
-   * change to propagate.
-   * @type {string}
+   * Downloads and unzips SteamCMD for the current platform into the `binDir`
+   * defined in `this._options`.
+   * @returns {Promise} Resolves when the SteamCMD binary has been successfully
+   * downloaded and extracted. Rejects otherwise.
    */
-  get exePath () {
-    return path.join(this._options.binDir, this.platformVars.exeName)
+  async _downloadSteamCmd () {
+    return new Promise((resolve, reject) => {
+      let req = request(this.platformVars.url)
+      if (process.platform !== 'win32') {
+        req = req.pipe(require('zlib').createGunzip())
+      }
+
+      req.pipe(this.platformVars.extract(resolve, reject))
+    })
   }
 
-  _getLoginStr () {
+  /**
+   * Gets the login command string based on the user config in `this._options`
+   * @returns {string}
+   */
+  getLoginStr () {
     const login = ['login', `"${this._options.username}"`]
 
     if (this._options.password) {
@@ -135,60 +219,13 @@ module.exports = class SteamCmd {
     return login.join(' ')
   }
 
-  setOptions (options) {
-    for (let key of Object.keys(options)) {
-      this._options[key] = options[key]
-    }
-  }
-
-  async _download () {
-    return new Promise((resolve, reject) => {
-      let req = request(this.platformVars.url)
-      if (process.platform !== 'win32') {
-        req = req.pipe(require('zlib').createGunzip())
-      }
-
-      req.pipe(this.platformVars.extract(resolve, reject))
-    })
-  }
-
-  async download () {
-    try {
-      // The file must be accessible and executable
-      await fs.access(this.exePath, fs.constants.X_OK)
-      return
-    } catch (ex) {
-      // If the exe couldn't be found then download it
-      return this._download()
-    }
-  }
-
-  static get EXIT_CODES () {
-    return EXIT_CODES
-  }
-
-  static getErrorMessage (exitCode) {
-    switch (exitCode) {
-      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
-        return 'The SteamCMD process was killed prematurely'
-      case SteamCmd.EXIT_CODES.NO_ERROR:
-        return 'No error'
-      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
-        return 'An unknown error occurred'
-      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
-        return 'A user was already logged into StremCMD'
-      case SteamCmd.EXIT_CODES.NO_CONNECTION:
-        return 'SteamCMD cannot connect to the internet'
-      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
-        return 'Invalid password'
-      case SteamCmd.EXIT_CODES.TEAM_GUARD_CODE_REQUIRED:
-        return 'A Steam Guard code was required to log in'
-      default:
-        return `An unknown error occurred. Exit code: ${exitCode}`
-    }
-  }
-
-  _run (commands) {
+  /**
+   * Runs the specified commands in a new SteamCMD instance. Internally this
+   * function creates a temporary file, writes the commands to it, executes the
+   * file as a script, and then finally quits.
+   * @returns {RunObj}
+   */
+  run (commands) {
     // We want these vars to be set to these values by default. They can still
     // be overwritten by setting them in the `commands` array.
     commands.unshift('@ShutdownOnFailedCommand 1')
@@ -201,6 +238,9 @@ module.exports = class SteamCmd {
         encoding: 'utf8',
         read () {}
       }),
+      // TODO this doesn't feel right. I should instead defer the process kill
+      // until after the process has spawned or (possibly) prevent the process
+      // from spawning at all.
       killSteamCmd: () => {}
     }
 
@@ -266,28 +306,109 @@ module.exports = class SteamCmd {
   }
 
   /**
-   * Note: this can take a very long time, especially if the binaries had to
-   * be freshly downloaded. This is because SteamCMD will first do an update
-   * before running the command.
+   * Makes sure that SteamCMD is usable on this system.
+   * *Note*: this can take a very long time to run for the first time after
+   * downloading SteamCMD. This is because SteamCMD will first do an update
+   * before running the command and quitting.
+   * @returns {Promise} Resovles once the SteamCMD process exited normally.
+   * Rejects otherwise.
    */
   async _touch () {
     return new Promise((resolve, reject) => {
-      const {outputStream} = this._run([])
+      const {outputStream} = this.run([])
 
       outputStream.on('close', () => { resolve() })
       outputStream.on('error', (err) => { reject(err) })
     })
   }
 
-  // TODO add the ability to stop a download. Currently this is not possible.
-  updateApp (appId, platformType = null, platformBitness = null) {
+  /**
+   * Convenience function that returns an appropriate error message for the
+   * given exit code.
+   * @param exitCode The exit code to get a message for.
+   * @returns {string}
+   */
+  static getErrorMessage (exitCode) {
+    switch (exitCode) {
+      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
+        return 'The SteamCMD process was killed prematurely'
+      case SteamCmd.EXIT_CODES.NO_ERROR:
+        return 'No error'
+      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
+        return 'An unknown error occurred'
+      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
+        return 'A user was already logged into StremCMD'
+      case SteamCmd.EXIT_CODES.NO_CONNECTION:
+        return 'SteamCMD cannot connect to the internet'
+      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
+        return 'Invalid password'
+      case SteamCmd.EXIT_CODES.TEAM_GUARD_CODE_REQUIRED:
+        return 'A Steam Guard code was required to log in'
+      default:
+        return `An unknown error occurred. Exit code: ${exitCode}`
+    }
+  }
+
+  /**
+   * Download the SteamCMD binaries if they are not installed in the current
+   * install directory.
+   * @returns {Promise} Resolves once the binaries have been downloaded.
+   */
+  async downloadSteamCmd () {
+    try {
+      // The file must be accessible and executable
+      await fs.access(this.exePath, fs.constants.X_OK)
+      return
+    } catch (ex) {
+      // If the exe couldn't be found then download it
+      return this._downloadSteamCmd()
+    }
+  }
+
+  /**
+   * Convenience function that ensures that SteamCMD is ready to use. It
+   * downloads the SteamCMD binaries and runs an empty script. Once that finishes
+   * then SteamCMD is ready to use.
+   * *Note*: this can take a very long time, especially if the binaries had to
+   * be freshly downloaded. This is because SteamCMD will first do an update
+   * before running the command.
+   * @returns {Promise} Resolves once SteamCMD has been downloaded and is ready
+   * to use.
+   */
+  async prep () {
+    await this.downloadSteamCmd()
+    return this._touch()
+  }
+
+  /**
+   * Allows you to set or update one or more options that this instance will use.
+   * @param {Object} An object that maps out each key and value that you want to
+   * set. This will update the current internal options object.
+   */
+  setOptions (options) {
+    for (let key of Object.keys(options)) {
+      this._options[key] = options[key]
+    }
+  }
+
+  /**
+   * Downloads or updates the specified Steam app. If this app has been partially
+   * downloaded in the current install directory then this will simply continue
+   * that download process.
+   * @param {number} appId The ID of the app to download.
+   * @param {string} [platformType] The platform type of the app that you want
+   * to download. If not set then this will use the current platform the user
+   * is on. Must be one of "windows", "macos", or "linux".
+   */
+  updateApp (appId, platformType, platformBitness) {
     if (!path.isAbsolute(this._options.installDir)) {
-      // throw an error immediately because it's invalid data, not a failure
+      // throw an error immediately because SteamCMD doesn't support relative
+      // install directories.
       throw new TypeError('installDir must be an absolute path to update an app')
     }
 
     const commands = [
-      this._getLoginStr(),
+      this.getLoginStr(),
       `force_install_dir "${this._options.installDir}"`,
       'app_update ' + appId
     ]
@@ -303,11 +424,6 @@ module.exports = class SteamCmd {
       commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
     }
 
-    return this._run(commands)
-  }
-
-  async prep () {
-    await this.download()
-    return this._touch()
+    return this.run(commands)
   }
 }
