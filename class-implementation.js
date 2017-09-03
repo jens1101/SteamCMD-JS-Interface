@@ -220,6 +220,81 @@ module.exports = class SteamCmd {
   }
 
   /**
+   * Makes sure that SteamCMD is usable on this system.
+   * *Note*: this can take a very long time to run for the first time after
+   * downloading SteamCMD. This is because SteamCMD will first do an update
+   * before running the command and quitting.
+   * @returns {Promise} Resovles once the SteamCMD process exited normally.
+   * Rejects otherwise.
+   */
+  async _touch () {
+    return new Promise((resolve, reject) => {
+      const {outputStream} = this.run([])
+
+      outputStream.on('close', () => { resolve() })
+      outputStream.on('error', (err) => { reject(err) })
+    })
+  }
+
+  /**
+   * Convenience function that returns an appropriate error message for the
+   * given exit code.
+   * @param exitCode The exit code to get a message for.
+   * @returns {string}
+   */
+  static getErrorMessage (exitCode) {
+    switch (exitCode) {
+      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
+        return 'The SteamCMD process was killed prematurely'
+      case SteamCmd.EXIT_CODES.NO_ERROR:
+        return 'No error'
+      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
+        return 'An unknown error occurred'
+      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
+        return 'A user was already logged into StremCMD'
+      case SteamCmd.EXIT_CODES.NO_CONNECTION:
+        return 'SteamCMD cannot connect to the internet'
+      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
+        return 'Invalid password'
+      case SteamCmd.EXIT_CODES.TEAM_GUARD_CODE_REQUIRED:
+        return 'A Steam Guard code was required to log in'
+      default:
+        return `An unknown error occurred. Exit code: ${exitCode}`
+    }
+  }
+
+  /**
+   * Download the SteamCMD binaries if they are not installed in the current
+   * install directory.
+   * @returns {Promise} Resolves once the binaries have been downloaded.
+   */
+  async downloadSteamCmd () {
+    try {
+      // The file must be accessible and executable
+      await fs.access(this.exePath, fs.constants.X_OK)
+      return
+    } catch (ex) {
+      // If the exe couldn't be found then download it
+      return this._downloadSteamCmd()
+    }
+  }
+
+  /**
+   * Convenience function that ensures that SteamCMD is ready to use. It
+   * downloads the SteamCMD binaries and runs an empty script. Once that finishes
+   * then SteamCMD is ready to use.
+   * *Note*: this can take a very long time, especially if the binaries had to
+   * be freshly downloaded. This is because SteamCMD will first do an update
+   * before running the command.
+   * @returns {Promise} Resolves once SteamCMD has been downloaded and is ready
+   * to use.
+   */
+  async prep () {
+    await this.downloadSteamCmd()
+    return this._touch()
+  }
+
+  /**
    * Runs the specified commands in a new SteamCMD instance. Internally this
    * function creates a temporary file, writes the commands to it, executes the
    * file as a script, and then finally quits.
@@ -303,81 +378,6 @@ module.exports = class SteamCmd {
     })
 
     return runObj
-  }
-
-  /**
-   * Makes sure that SteamCMD is usable on this system.
-   * *Note*: this can take a very long time to run for the first time after
-   * downloading SteamCMD. This is because SteamCMD will first do an update
-   * before running the command and quitting.
-   * @returns {Promise} Resovles once the SteamCMD process exited normally.
-   * Rejects otherwise.
-   */
-  async _touch () {
-    return new Promise((resolve, reject) => {
-      const {outputStream} = this.run([])
-
-      outputStream.on('close', () => { resolve() })
-      outputStream.on('error', (err) => { reject(err) })
-    })
-  }
-
-  /**
-   * Convenience function that returns an appropriate error message for the
-   * given exit code.
-   * @param exitCode The exit code to get a message for.
-   * @returns {string}
-   */
-  static getErrorMessage (exitCode) {
-    switch (exitCode) {
-      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
-        return 'The SteamCMD process was killed prematurely'
-      case SteamCmd.EXIT_CODES.NO_ERROR:
-        return 'No error'
-      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
-        return 'An unknown error occurred'
-      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
-        return 'A user was already logged into StremCMD'
-      case SteamCmd.EXIT_CODES.NO_CONNECTION:
-        return 'SteamCMD cannot connect to the internet'
-      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
-        return 'Invalid password'
-      case SteamCmd.EXIT_CODES.TEAM_GUARD_CODE_REQUIRED:
-        return 'A Steam Guard code was required to log in'
-      default:
-        return `An unknown error occurred. Exit code: ${exitCode}`
-    }
-  }
-
-  /**
-   * Download the SteamCMD binaries if they are not installed in the current
-   * install directory.
-   * @returns {Promise} Resolves once the binaries have been downloaded.
-   */
-  async downloadSteamCmd () {
-    try {
-      // The file must be accessible and executable
-      await fs.access(this.exePath, fs.constants.X_OK)
-      return
-    } catch (ex) {
-      // If the exe couldn't be found then download it
-      return this._downloadSteamCmd()
-    }
-  }
-
-  /**
-   * Convenience function that ensures that SteamCMD is ready to use. It
-   * downloads the SteamCMD binaries and runs an empty script. Once that finishes
-   * then SteamCMD is ready to use.
-   * *Note*: this can take a very long time, especially if the binaries had to
-   * be freshly downloaded. This is because SteamCMD will first do an update
-   * before running the command.
-   * @returns {Promise} Resolves once SteamCMD has been downloaded and is ready
-   * to use.
-   */
-  async prep () {
-    await this.downloadSteamCmd()
-    return this._touch()
   }
 
   /**
