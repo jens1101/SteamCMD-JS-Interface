@@ -10,6 +10,15 @@ const mkdirp = require('mkdirp')
 const treeKill = require('tree-kill')
 
 /**
+ * @typedef {Object} RunObj
+ * @property {Readable} outputStream A readable stream that returns the output
+ * of the SteamCMD process. It also closes with the correct exit code.
+ * @see EXIT_CODES
+ * @property {Function} killSteamCmd A function that, once called, kills the
+ * SteamCMD process and destroys `outputStream`.
+ */
+
+/**
  * These are all exit codes that SteamCMD can use. This is not an exhaustive
  * list yet.
  * @namespace
@@ -64,16 +73,7 @@ const DEFAULT_OPTIONS = {
  * allows you to download the SteamCMD binaries, login with a custom user
  * acocunt, update an app, etc.
  */
-module.exports = class SteamCmd {
-  /**
-   * @typedef {Object} RunObj
-   * @property {Readable} outputStream A readable stream that returns the output
-   * of the SteamCMD process. It also closes with the correct exit code.
-   * @see EXIT_CODES
-   * @property {Function} killSteamCmd A function that, once called, kills the
-   * SteamCMD process and destroys `outputStream`.
-   */
-
+class SteamCmd {
   /**
    * Simple accessor that makes the exit codes a static variable.
    * @see EXIT_CODES
@@ -427,3 +427,5 @@ module.exports = class SteamCmd {
     return this.run(commands)
   }
 }
+
+module.exports = SteamCmd
