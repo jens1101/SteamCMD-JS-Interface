@@ -75,21 +75,21 @@ const DEFAULT_OPTIONS = {
  */
 class SteamCmd {
   /**
-   * Simple accessor that makes the exit codes a static variable.
-   * @see EXIT_CODES
-   * @type {Object}
-   */
-  static get EXIT_CODES () {
-    return EXIT_CODES
-  }
-
-  /**
    * Simple accessor that makes the default options a static variable.
    * @see DEFAULT_OPTIONS
    * @type {Object}
    */
   static get DEFAULT_OPTIONS () {
     return DEFAULT_OPTIONS
+  }
+
+  /**
+   * Simple accessor that makes the exit codes a static variable.
+   * @see EXIT_CODES
+   * @type {Object}
+   */
+  static get EXIT_CODES () {
+    return EXIT_CODES
   }
 
   /**
@@ -100,6 +100,14 @@ class SteamCmd {
    */
   get exePath () {
     return path.join(this._options.binDir, this.platformVars.exeName)
+  }
+
+  /**
+   * A publicly accessible getter to get the current install directory
+   * @type {string}
+   */
+  get installDir () {
+    return this._options.installDir
   }
 
   /**
@@ -187,6 +195,7 @@ class SteamCmd {
   /**
    * Downloads and unzips SteamCMD for the current platform into the `binDir`
    * defined in `this._options`.
+   * @private
    * @returns {Promise} Resolves when the SteamCMD binary has been successfully
    * downloaded and extracted. Rejects otherwise.
    */
@@ -202,28 +211,11 @@ class SteamCmd {
   }
 
   /**
-   * Gets the login command string based on the user config in `this._options`
-   * @returns {string}
-   */
-  getLoginStr () {
-    const login = ['login', `"${this._options.username}"`]
-
-    if (this._options.password) {
-      login.push([`"${this._options.password}"`])
-    }
-
-    if (this._options.steamGuardCode) {
-      login.push(`"${this._options.steamGuardCode}"`)
-    }
-
-    return login.join(' ')
-  }
-
-  /**
    * Makes sure that SteamCMD is usable on this system.
    * *Note*: this can take a very long time to run for the first time after
    * downloading SteamCMD. This is because SteamCMD will first do an update
    * before running the command and quitting.
+   * @private
    * @returns {Promise} Resovles once the SteamCMD process exited normally.
    * Rejects otherwise.
    */
@@ -234,6 +226,22 @@ class SteamCmd {
       outputStream.on('close', () => { resolve() })
       outputStream.on('error', (err) => { reject(err) })
     })
+  }
+
+  /**
+   * Download the SteamCMD binaries if they are not installed in the current
+   * install directory.
+   * @returns {Promise} Resolves once the binaries have been downloaded.
+   */
+  async downloadSteamCmd () {
+    try {
+      // The file must be accessible and executable
+      await fs.access(this.exePath, fs.constants.X_OK)
+      return
+    } catch (ex) {
+      // If the exe couldn't be found then download it
+      return this._downloadSteamCmd()
+    }
   }
 
   /**
@@ -264,19 +272,21 @@ class SteamCmd {
   }
 
   /**
-   * Download the SteamCMD binaries if they are not installed in the current
-   * install directory.
-   * @returns {Promise} Resolves once the binaries have been downloaded.
+   * Gets the login command string based on the user config in `this._options`
+   * @returns {string}
    */
-  async downloadSteamCmd () {
-    try {
-      // The file must be accessible and executable
-      await fs.access(this.exePath, fs.constants.X_OK)
-      return
-    } catch (ex) {
-      // If the exe couldn't be found then download it
-      return this._downloadSteamCmd()
+  getLoginStr () {
+    const login = ['login', `"${this._options.username}"`]
+
+    if (this._options.password) {
+      login.push([`"${this._options.password}"`])
     }
+
+    if (this._options.steamGuardCode) {
+      login.push(`"${this._options.steamGuardCode}"`)
+    }
+
+    return login.join(' ')
   }
 
   /**
