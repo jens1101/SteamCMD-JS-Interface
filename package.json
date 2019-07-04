@@ -21,7 +21,7 @@
     "fs-extra": "^4.0.1",
     "lodash.defaults": "^4.2.0",
     "mkdirp": "^0.5.1",
-    "request": "^2.81.0",
+    "request": "^2.88.0",
     "strip-ansi": "^4.0.0",
     "tar": "^3.2.1",
     "tmp-promise": "^1.0.3",
