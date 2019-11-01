@@ -283,7 +283,7 @@ class SteamCmd {
     const login = ['login', `"${this._options.username}"`]
 
     if (this._options.password) {
-      login.push([`"${this._options.password}"`])
+      login.push(`"${this._options.password}"`)
     }
 
     if (this._options.steamGuardCode) {
