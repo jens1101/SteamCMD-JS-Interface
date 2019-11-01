@@ -37,7 +37,7 @@ const treeKill = require('tree-kill')
  * @property {number} NO_CONNECTION Indicates that SteamCMD has no connection to
  * the internet.
  * @property {number} INVALID_PASSWORD Indicates that an incorrect password was
- * proveded.
+ * provided.
  * @property {number} STEAM_GUARD_CODE_REQUIRED Indicated that a Steam guard
  * code is required before the login can finish.
  */
@@ -77,7 +77,7 @@ const DEFAULT_OPTIONS = {
 /**
  * This class acts as an intermediate layer between SteamCMD and NodeJS. It
  * allows you to download the SteamCMD binaries, login with a custom user
- * acocunt, update an app, etc.
+ * account, update an app, etc.
  */
 class SteamCmd {
   /**
