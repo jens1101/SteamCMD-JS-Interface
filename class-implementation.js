@@ -9,6 +9,12 @@ const stripAnsi = require('strip-ansi')
 const mkdirp = require('mkdirp')
 const treeKill = require('tree-kill')
 
+// TODO: use ES Modules
+// TODO: correct all warnings
+// TODO: use "yauzl" instead of "unzip"
+// TODO: rename this file to main.mjs
+// TODO: make use of class properties
+
 /**
  * @typedef {Object} RunObj
  * @property {Readable} outputStream A readable stream that returns the output
@@ -124,8 +130,6 @@ class SteamCmd {
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip',
           extract: (resolve, reject) => {
-            // TODO use "yauzl" instead of "unzip". It is more regularly updated and more
-            // popular
             const {Extract} = require('unzip')
 
             mkdirp.sync(this._options.binDir)
