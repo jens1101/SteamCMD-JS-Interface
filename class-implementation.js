@@ -9,7 +9,6 @@ const stripAnsi = require('strip-ansi')
 const mkdirp = require('mkdirp')
 const treeKill = require('tree-kill')
 
-// TODO: use ES Modules
 // TODO: correct all warnings
 // TODO: use "yauzl" instead of "unzip"
 // TODO: rename this file to main.mjs
@@ -54,14 +53,14 @@ const EXIT_CODES = {
 /**
  * All the options that are used by SteamCmd by default.
  * @namespace
- * @property {string} binDir The directory into which the SteamCMD binaries will
+ * @property {string} binDir The directory into which the SteamCMD binaries
+ * will be downloaded.
+ * @property {string} installDir The directory into which the steam apps will
  * be downloaded.
- * @property {string} installDir The directory into which the steam apps will be
- * downloaded.
  * *Note*: If you have the Steam client installed then you can set this to it's
- * default library folder (default on Windows is 'C:\Program Files (x86)\Steam\').
- * This will ensure that Steam will recognise the game on startup and you don't
- * need to manually copy anything.
+ * default library folder (default on Windows is 'C:\Program Files
+ * (x86)\Steam\'). This will ensure that Steam will recognise the game on
+ * startup and you don't need to manually copy anything.
  * @property {string} username The username to use for login.
  * @property {string} password The password to use for login.
  * @property {string} steamGuardCode The steam guard code to use for login.
@@ -130,7 +129,7 @@ class SteamCmd {
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip',
           extract: (resolve, reject) => {
-            const {Extract} = require('unzip')
+            const { Extract } = require('unzip')
 
             mkdirp.sync(this._options.binDir)
 
@@ -147,7 +146,7 @@ class SteamCmd {
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz',
           extract: (resolve, reject) => {
-            const {Unpack} = require('tar')
+            const { Unpack } = require('tar')
 
             mkdirp.sync(this._options.binDir)
 
@@ -171,7 +170,7 @@ class SteamCmd {
         this.platformVars = {
           url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz',
           extract: (resolve, reject) => {
-            const {Unpack} = require('tar')
+            const { Unpack } = require('tar')
 
             mkdirp.sync(this._options.binDir)
 
@@ -225,7 +224,7 @@ class SteamCmd {
    */
   async _touch () {
     return new Promise((resolve, reject) => {
-      const {outputStream} = this.run([])
+      const { outputStream } = this.run([])
 
       outputStream.on('close', () => { resolve() })
       outputStream.on('error', (err) => { reject(err) })
@@ -295,8 +294,8 @@ class SteamCmd {
 
   /**
    * Convenience function that ensures that SteamCMD is ready to use. It
-   * downloads the SteamCMD binaries and runs an empty script. Once that finishes
-   * then SteamCMD is ready to use.
+   * downloads the SteamCMD binaries and runs an empty script. Once that
+   * finishes then SteamCMD is ready to use.
    * *Note*: this can take a very long time, especially if the binaries had to
    * be freshly downloaded. This is because SteamCMD will first do an update
    * before running the command.
@@ -335,7 +334,7 @@ class SteamCmd {
 
     tmp.file().then(commandFile => {
       return fs.appendFile(commandFile.path, commands.join('\n') + '\n')
-        .then(() => commandFile)
+               .then(() => commandFile)
     }).then(commandFile => {
       const steamcmdProcess = spawn(this.exePath, [
         `+runscript ${commandFile.path}`
@@ -395,9 +394,10 @@ class SteamCmd {
   }
 
   /**
-   * Allows you to set or update one or more options that this instance will use.
-   * @param {Object} An object that maps out each key and value that you want to
-   * set. This will update the current internal options object.
+   * Allows you to set or update one or more options that this instance will
+   * use.
+   * @param {Object} An object that maps out each key and value that you want
+   * to set. This will update the current internal options object.
    */
   setOptions (options) {
     for (let key of Object.keys(options)) {
@@ -406,9 +406,9 @@ class SteamCmd {
   }
 
   /**
-   * Downloads or updates the specified Steam app. If this app has been partially
-   * downloaded in the current install directory then this will simply continue
-   * that download process.
+   * Downloads or updates the specified Steam app. If this app has been
+   * partially downloaded in the current install directory then this will
+   * simply continue that download process.
    * @param {number} appId The ID of the app to download.
    * @param {string} [platformType] The platform type of the app that you want
    * to download. If not set then this will use the current platform the user
@@ -418,7 +418,8 @@ class SteamCmd {
     if (!path.isAbsolute(this._options.installDir)) {
       // throw an error immediately because SteamCMD doesn't support relative
       // install directories.
-      throw new TypeError('installDir must be an absolute path to update an app')
+      throw new TypeError(
+        'installDir must be an absolute path to update an app')
     }
 
     const commands = [
@@ -428,13 +429,13 @@ class SteamCmd {
     ]
 
     if (platformBitness === 32 ||
-        platformBitness === 64) {
+      platformBitness === 64) {
       commands.unshift('@sSteamCmdForcePlatformBitness ' + platformBitness)
     }
 
     if (platformType === 'windows' ||
-        platformType === 'macos' ||
-        platformType === 'linux') {
+      platformType === 'macos' ||
+      platformType === 'linux') {
       commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
     }
 
