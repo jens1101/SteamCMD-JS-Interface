@@ -1,6 +1,5 @@
 const path = require('path')
 const fs = require('fs-extra')
-const request = require('request')
 const defaults = require('lodash.defaults')
 const tmp = require('tmp-promise')
 const { spawn } = require('child_process')
@@ -81,16 +80,16 @@ class SteamCmd {
    * @namespace
    * @property {string} downloadUrl The URL from which the Steam CMD executable
    * can be downloaded
-   * @property {function} extract TODO
    * @property {string} exeName The name of the final Steam CMD executable after
    * extraction.
+   * @property {function} extract TODO
    */
   #platformVariables = {
     downloadUrl: '',
+    exeName: '',
     extract: async () => {
       throw new Error('Not Implemented')
-    },
-    exeName: ''
+    }
   }
 
   /**
@@ -104,69 +103,25 @@ class SteamCmd {
     // Some platform-dependent setup
     switch (process.platform) {
       case 'win32':
-        this.platformVars = {
-          url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip',
-          extract: (resolve, reject) => {
-            const { Extract } = require('unzip')
+        this.#platformVariables.downloadUrl =
+          'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip'
+        this.#platformVariables.exeName = 'steamcmd.exe'
+        this.#platformVariables.extract = this.#extractZip
 
-            mkdirp.sync(this.#options.binDir)
-
-            return new Extract({
-              path: this.#options.binDir
-            }).on('finish', resolve).on('error', reject)
-          },
-          exeName: 'steamcmd.exe',
-          shellName: 'powershell.exe',
-          echoExitCode: 'echo $lastexitcode'
-        }
         break
       case 'darwin':
-        this.platformVars = {
-          url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz',
-          extract: (resolve, reject) => {
-            const { Unpack } = require('tar')
+        this.#platformVariables.downloadUrl =
+          'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz'
+        this.#platformVariables.exeName = 'steamcmd.sh'
+        this.#platformVariables.extract = this.#extractTar
 
-            mkdirp.sync(this.#options.binDir)
-
-            return new Unpack({
-              cwd: this.#options.binDir
-            }).on('close', () => {
-              try {
-                fs.accessSync(this.exePath, fs.constants.X_OK)
-                resolve()
-              } catch (ex) {
-                reject(ex)
-              }
-            })
-          },
-          exeName: 'steamcmd.sh',
-          shellName: 'bash',
-          echoExitCode: 'echo $?'
-        }
         break
       case 'linux':
-        this.platformVars = {
-          url: 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz',
-          extract: (resolve, reject) => {
-            const { Unpack } = require('tar')
+        this.#platformVariables.downloadUrl =
+          'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'
+        this.#platformVariables.exeName = 'steamcmd.sh'
+        this.#platformVariables.extract = this.#extractTar
 
-            mkdirp.sync(this.#options.binDir)
-
-            return new Unpack({
-              cwd: this.#options.binDir
-            }).on('close', () => {
-              try {
-                fs.accessSync(this.exePath, fs.constants.X_OK)
-                resolve()
-              } catch (ex) {
-                reject(ex)
-              }
-            })
-          },
-          exeName: 'steamcmd.sh',
-          shellName: 'bash',
-          echoExitCode: 'echo $?'
-        }
         break
       default:
         throw new Error(`Platform "${process.platform}" is not supported`)
@@ -174,17 +129,16 @@ class SteamCmd {
   }
 
   /**
-   * The path to the executable. This is defined as a getter, as opposed to a
-   * variable, because the user can change the bin directory and we want that
-   * change to propagate.
+   * A publicly accessible getter to get the Steam CMD executable
    * @type {string}
    */
   get exePath () {
-    return path.join(this.#options.binDir, this.platformVars.exeName)
+    return path.join(this.#options.binDir, this.#platformVariables.exeName)
   }
 
   /**
-   * A publicly accessible getter to get the current install directory
+   * A publicly accessible getter to get the current directory to which
+   * applications will be installed.
    * @type {string}
    */
   get installDir () {
@@ -218,6 +172,14 @@ class SteamCmd {
     }
   }
 
+  async #extractZip () {
+    // TODO: implement
+  }
+
+  async #extractTar () {
+    // TODO: implement
+  }
+
   /**
    * Downloads and unzips SteamCMD for the current platform into the `binDir`
    * defined in `this.#options`.
@@ -226,13 +188,16 @@ class SteamCmd {
    * downloaded and extracted. Rejects otherwise.
    */
   async _downloadSteamCmd () {
+    // TODO: create a temp file, download to it using axios, extract the
+    // binaries, and then remove the temp file
+
     return new Promise((resolve, reject) => {
-      let req = request(this.platformVars.url)
+      let req = request(this.#platformVariables.url)
       if (process.platform !== 'win32') {
         req = req.pipe(require('zlib').createGunzip())
       }
 
-      req.pipe(this.platformVars.extract(resolve, reject))
+      req.pipe(this.#platformVariables.extract(resolve, reject))
     })
   }
 
