@@ -1,12 +1,13 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs')
 const defaults = require('lodash.defaults')
 const tmp = require('tmp-promise')
+const axios = require('axios')
 const { spawn } = require('child_process')
 const { Readable } = require('stream')
 const stripAnsi = require('strip-ansi')
-const mkdirp = require('mkdirp')
 const treeKill = require('tree-kill')
+const yauzl = require('yauzl')
 
 // TODO: correct all warnings
 // TODO: use "yauzl" instead of "unzip"
@@ -82,12 +83,13 @@ class SteamCmd {
    * can be downloaded
    * @property {string} exeName The name of the final Steam CMD executable after
    * extraction.
-   * @property {function} extract TODO
+   * @property {Function} extract Extracts the Steam CMD executable from the
+   * given file descriptor (must be an archive)
    */
   #platformVariables = {
     downloadUrl: '',
     exeName: '',
-    extract: async () => {
+    extract: async (_fileDescriptor) => {
       throw new Error('Not Implemented')
     }
   }
@@ -99,6 +101,8 @@ class SteamCmd {
    */
   constructor (options = {}) {
     defaults(this.#options, options)
+
+    // TODO: create directories
 
     // Some platform-dependent setup
     switch (process.platform) {
@@ -172,11 +176,47 @@ class SteamCmd {
     }
   }
 
-  async #extractZip () {
-    // TODO: implement
+  async #extractZip (fileDescriptor) {
+    const zipFile = await new Promise((resolve, reject) => {
+      yauzl.fromFd(fileDescriptor,
+        { lazyEntries: true },
+        (err, zipFile) => {
+          if (err) reject(err)
+          else resolve(zipFile)
+        })
+    })
+
+    const executableEntry = await new Promise((resolve, reject) => {
+      zipFile.on('end', () => {
+        reject(new Error('Steam CMD executable not found in archive'))
+      })
+      zipFile.on('error', reject)
+      zipFile.on('entry', entry => {
+        if (entry.fileName === this.#platformVariables.exeName) {
+          resolve(entry)
+        } else {
+          zipFile.readEntry()
+        }
+      })
+
+      zipFile.readEntry()
+    })
+
+    await new Promise(resolve => {
+      zipFile.openReadStream(executableEntry, (err, readStream) => {
+        if (err) throw err
+
+        const exeFileWriteStream = fs.createWriteStream(this.exePath)
+
+        readStream.pipe(exeFileWriteStream)
+        exeFileWriteStream.on('finish', resolve)
+      })
+    })
+
+    zipFile.close()
   }
 
-  async #extractTar () {
+  async #extractTar (fileDescriptor) {
     // TODO: implement
   }
 
@@ -188,17 +228,22 @@ class SteamCmd {
    * downloaded and extracted. Rejects otherwise.
    */
   async _downloadSteamCmd () {
-    // TODO: create a temp file, download to it using axios, extract the
-    // binaries, and then remove the temp file
+    const tempFile = await tmp.file()
 
-    return new Promise((resolve, reject) => {
-      let req = request(this.#platformVariables.url)
-      if (process.platform !== 'win32') {
-        req = req.pipe(require('zlib').createGunzip())
-      }
+    const responseStream = await axios.get(this.#platformVariables.downloadUrl,
+      { responseType: 'stream' })
 
-      req.pipe(this.#platformVariables.extract(resolve, reject))
+    const tempFileWriteStream = fs.createWriteStream(tempFile.path)
+
+    responseStream.data.pipe(tempFileWriteStream)
+    await new Promise(resolve => {
+      tempFileWriteStream.on('finish', resolve)
     })
+
+    await this.#platformVariables.extract(tempFile.fd)
+
+    // Cleanup the temp file
+    tempFile.cleanup()
   }
 
   /**
