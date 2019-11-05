@@ -110,21 +110,21 @@ class SteamCmd {
         this.#platformVariables.downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip'
         this.#platformVariables.exeName = 'steamcmd.exe'
-        this.#platformVariables.extract = this.#extractZip
+        this.#platformVariables.extract = this._extractZip
 
         break
       case 'darwin':
         this.#platformVariables.downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz'
         this.#platformVariables.exeName = 'steamcmd.sh'
-        this.#platformVariables.extract = this.#extractTar
+        this.#platformVariables.extract = this._extractTar
 
         break
       case 'linux':
         this.#platformVariables.downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'
         this.#platformVariables.exeName = 'steamcmd.sh'
-        this.#platformVariables.extract = this.#extractTar
+        this.#platformVariables.extract = this._extractTar
 
         break
       default:
@@ -169,14 +169,14 @@ class SteamCmd {
         return 'SteamCMD cannot connect to the internet'
       case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
         return 'Invalid password'
-      case SteamCmd.EXIT_CODES.TEAM_GUARD_CODE_REQUIRED:
+      case SteamCmd.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED:
         return 'A Steam Guard code was required to log in'
       default:
         return `An unknown error occurred. Exit code: ${exitCode}`
     }
   }
 
-  async #extractZip (fileDescriptor) {
+  async _extractZip (fileDescriptor) {
     const zipFile = await new Promise((resolve, reject) => {
       yauzl.fromFd(fileDescriptor,
         { lazyEntries: true },
@@ -216,7 +216,7 @@ class SteamCmd {
     zipFile.close()
   }
 
-  async #extractTar (fileDescriptor) {
+  async _extractTar (fileDescriptor) {
     // TODO: implement
   }
 
@@ -272,8 +272,7 @@ class SteamCmd {
   async downloadSteamCmd () {
     try {
       // The file must be accessible and executable
-      await fs.access(this.exePath, fs.constants.X_OK)
-
+      await fs.promises.access(this.exePath, fs.constants.X_OK)
     } catch (ex) {
       // If the exe couldn't be found then download it
       return this._downloadSteamCmd()
@@ -339,8 +338,9 @@ class SteamCmd {
     }
 
     tmp.file().then(commandFile => {
-      return fs.appendFile(commandFile.path, commands.join('\n') + '\n')
-               .then(() => commandFile)
+      return fs.promises.appendFile(commandFile.path,
+        commands.join('\n') + '\n')
+        .then(() => commandFile)
     }).then(commandFile => {
       const steamcmdProcess = spawn(this.exePath, [
         `+runscript ${commandFile.path}`
@@ -363,10 +363,10 @@ class SteamCmd {
 
       steamcmdProcess.stdout.on('data', (data) => {
         currLine += stripAnsi(data.toString('utf8')).replace(/\r\n/g, '\n')
-        let lines = currLine.split('\n')
+        const lines = currLine.split('\n')
         currLine = lines.pop()
 
-        for (let line of lines) {
+        for (const line of lines) {
           if (line.includes('FAILED with result code 5')) {
             exitCode = SteamCmd.EXIT_CODES.INVALID_PASSWORD
           } else if (line.includes('FAILED with result code 63')) {
@@ -405,8 +405,11 @@ class SteamCmd {
    * simply continue that download process.
    * @param {number} appId The ID of the app to download.
    * @param {string} [platformType] The platform type of the app that you want
-   * to download. If not set then this will use the current platform the user
-   * is on. Must be one of "windows", "macos", or "linux".
+   * to download. If omitted then this will use the current platform. Must be
+   * one of "windows", "macos", or "linux".
+   * @param {number} [platformBitness] Indicates the bitness of the platform.
+   * Can be either 32 or 64. If omitted then this will use the current
+   * platform's bitness.
    */
   updateApp (appId, platformType, platformBitness) {
     if (!path.isAbsolute(this.#options.installDir)) {
