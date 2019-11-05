@@ -400,18 +400,6 @@ class SteamCmd {
   }
 
   /**
-   * Allows you to set or update one or more options that this instance will
-   * use.
-   * @param {Object} options An object that maps out each key and value that
-   * you want to set. This will update the current internal options object.
-   */
-  setOptions (options) {
-    for (let [key, value] of Object.entries(options)) {
-      this.#options[key] = value
-    }
-  }
-
-  /**
    * Downloads or updates the specified Steam app. If this app has been
    * partially downloaded in the current install directory then this will
    * simply continue that download process.
