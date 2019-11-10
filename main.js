@@ -8,6 +8,7 @@ const { Readable } = require('stream')
 const stripAnsi = require('strip-ansi')
 const treeKill = require('tree-kill')
 const yauzl = require('yauzl')
+const tar = require('tar')
 
 // TODO: correct all warnings
 // TODO: use "yauzl" instead of "unzip"
@@ -188,9 +189,9 @@ class SteamCmd {
     }
   }
 
-  async _extractZip (fileDescriptor) {
+  async _extractZip (path) {
     const zipFile = await new Promise((resolve, reject) => {
-      yauzl.fromFd(fileDescriptor,
+      yauzl.open(path,
         { lazyEntries: true },
         (err, zipFile) => {
           if (err) reject(err)
@@ -228,8 +229,12 @@ class SteamCmd {
     zipFile.close()
   }
 
-  async _extractTar (fileDescriptor) {
-    // TODO: implement
+  async _extractTar (path) {
+    await tar.extract({
+      strict: true,
+      file: path,
+      filter: (_, entry) => entry.fileName === this.#platformVariables.exeName
+    }, path)
   }
 
   /**
@@ -252,7 +257,7 @@ class SteamCmd {
       tempFileWriteStream.on('finish', resolve)
     })
 
-    await this.#platformVariables.extract(tempFile.fd)
+    await this.#platformVariables.extract(tempFile.path)
 
     // Cleanup the temp file
     tempFile.cleanup()
