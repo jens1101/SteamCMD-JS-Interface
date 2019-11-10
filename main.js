@@ -32,28 +32,40 @@ class SteamCmd {
   /**
    * These are all exit codes that SteamCMD can use. This is not an exhaustive
    * list yet.
-   * @namespace
-   * @property {null} PROCESS_KILLED Indicates that the SteamCMD process was
-   * forcefully killed.
-   * @property {number} NO_ERROR Indicates that SteamCMD exited normally.
-   * @property {number} UNKNOWN_ERROR Indicates that some unknown error
-   * occurred.
-   * @property {number} ALREADY_LOGGED_IN Indicates that the user attemted to
-   * login while another user was already logged in.
-   * @property {number} NO_CONNECTION Indicates that SteamCMD has no connection
-   * to the internet.
-   * @property {number} INVALID_PASSWORD Indicates that an incorrect password
-   * was provided.
-   * @property {number} STEAM_GUARD_CODE_REQUIRED Indicated that a Steam guard
-   * code is required before the login can finish.
+   * @readonly
+   * @enum {number}
    */
   static EXIT_CODES = {
+    /**
+     * Indicates that the SteamCMD process was forcefully killed.
+     * @type {null}
+     */
     PROCESS_KILLED: null,
+    /**
+     * Indicates that SteamCMD exited normally.
+     */
     NO_ERROR: 0,
+    /**
+     * Indicates that some unknown error occurred.
+     */
     UNKNOWN_ERROR: 1,
+    /**
+     * Indicates that the user attempted to login while another user was already
+     * logged in.
+     */
     ALREADY_LOGGED_IN: 2,
+    /**
+     * Indicates that SteamCMD has no connection to the internet.
+     */
     NO_CONNECTION: 3,
+    /**
+     * Indicates that an incorrect password was provided.
+     */
     INVALID_PASSWORD: 5,
+    /**
+     * Indicated that a Steam guard code is required before the login can
+     * finish.
+     */
     STEAM_GUARD_CODE_REQUIRED: 63
   }
 
