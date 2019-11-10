@@ -1,6 +1,6 @@
 {
   "name": "steamcmd-interface",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "keywords": [
     "node",
     "steamcmd",
@@ -14,9 +14,7 @@
     "type": "git",
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
   },
-  "scripts": {
-    "test": "mocha ./**/*.spec.js --reporter spec"
-  },
+  "scripts": {},
   "dependencies": {
     "axios": "^0.19.0",
     "fs-extra": "^4.0.3",
