@@ -245,6 +245,7 @@ class SteamCmd {
   }
 
   async _extractTar (path) {
+    // noinspection JSUnusedGlobalSymbols
     await tar.extract({
       strict: true,
       file: path,
