@@ -9,9 +9,9 @@ const stripAnsi = require('strip-ansi')
 const treeKill = require('tree-kill')
 const yauzl = require('yauzl')
 const tar = require('tar')
+const fileType = require('file-type')
 
 // TODO: correct all warnings
-// TODO: use "yauzl" instead of "unzip"
 // TODO: make use of class properties
 // TODO: make use of async generators
 
@@ -70,6 +70,8 @@ class SteamCmd {
     STEAM_GUARD_CODE_REQUIRED: 63
   }
 
+  // TODO: each one of these should be a property of this class. Some should be
+  // private that can only be initialised upon construction and some public.
   /**
    * All the options that are used by SteamCmd
    * @namespace
@@ -90,22 +92,18 @@ class SteamCmd {
   }
 
   /**
-   * Variables that change based on the platform that this is run on
-   * @namespace
-   * @property {string} downloadUrl The URL from which the Steam CMD executable
-   * can be downloaded
-   * @property {string} exeName The name of the final Steam CMD executable after
-   * extraction.
-   * @property {Function} extract Extracts the Steam CMD executable from the
-   * given file descriptor (must be an archive)
+   * The URL from which the Steam CMD executable can be downloaded. Changes
+   * depending on the current platform.
+   * @type {string}
    */
-  #platformVariables = {
-    downloadUrl: '',
-    exeName: '',
-    extract: async (_fileDescriptor) => {
-      throw new Error('Not Implemented')
-    }
-  }
+  #downloadUrl = ''
+
+  /**
+   * The name of the final Steam CMD executable after extraction. Changes
+   * depending on the current platform.
+   * @type {string}
+   */
+  #exeName = ''
 
   /**
    * Constructs a new SteamCmd object.
@@ -115,30 +113,22 @@ class SteamCmd {
   constructor (options = {}) {
     defaults(this.#options, options)
 
-    // TODO: create directories
-
     // Some platform-dependent setup
     switch (process.platform) {
       case 'win32':
-        this.#platformVariables.downloadUrl =
+        this.#downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip'
-        this.#platformVariables.exeName = 'steamcmd.exe'
-        this.#platformVariables.extract = this._extractZip
-
+        this.#exeName = 'steamcmd.exe'
         break
       case 'darwin':
-        this.#platformVariables.downloadUrl =
+        this.#downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz'
-        this.#platformVariables.exeName = 'steamcmd.sh'
-        this.#platformVariables.extract = this._extractTar
-
+        this.#exeName = 'steamcmd.sh'
         break
       case 'linux':
-        this.#platformVariables.downloadUrl =
+        this.#downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'
-        this.#platformVariables.exeName = 'steamcmd.sh'
-        this.#platformVariables.extract = this._extractTar
-
+        this.#exeName = 'steamcmd.sh'
         break
       default:
         throw new Error(`Platform "${process.platform}" is not supported`)
@@ -150,7 +140,7 @@ class SteamCmd {
    * @type {string}
    */
   get exePath () {
-    return path.join(this.#options.binDir, this.#platformVariables.exeName)
+    return path.join(this.#options.binDir, this.#exeName)
   }
 
   /**
@@ -189,6 +179,30 @@ class SteamCmd {
     }
   }
 
+  /**
+   * Extracts the Steam CMD executable from the given file path.
+   * @param {string} path The path to the archive in which the Steam CMD
+   * executable resides.
+   */
+  async _extractArchive (path) {
+    const fileHandle = await fs.promises.open(path, 'r')
+
+    const { buffer } = await fileHandle.read(
+      Buffer.alloc(fileType.minimumBytes),
+      0,
+      fileType.minimumBytes,
+      0)
+
+    switch (fileType(buffer).mime) {
+      case 'application/gzip':
+        return this._extractTar(path)
+      case 'application/zip':
+        return this._extractZip(path)
+      default:
+        throw new Error('Archive format not recognised')
+    }
+  }
+
   async _extractZip (path) {
     const zipFile = await new Promise((resolve, reject) => {
       yauzl.open(path,
@@ -205,7 +219,7 @@ class SteamCmd {
       })
       zipFile.on('error', reject)
       zipFile.on('entry', entry => {
-        if (entry.fileName === this.#platformVariables.exeName) {
+        if (entry.fileName === this.#exeName) {
           resolve(entry)
         } else {
           zipFile.readEntry()
@@ -215,7 +229,7 @@ class SteamCmd {
       zipFile.readEntry()
     })
 
-    await new Promise(resolve => {
+    await new Promise((resolve, reject) => {
       zipFile.openReadStream(executableEntry, (err, readStream) => {
         if (err) throw err
 
@@ -223,6 +237,7 @@ class SteamCmd {
 
         readStream.pipe(exeFileWriteStream)
         exeFileWriteStream.on('finish', resolve)
+        exeFileWriteStream.on('error', reject)
       })
     })
 
@@ -233,7 +248,7 @@ class SteamCmd {
     await tar.extract({
       strict: true,
       file: path,
-      filter: (_, entry) => entry.fileName === this.#platformVariables.exeName
+      filter: (_, entry) => entry.fileName === this.#exeName
     }, path)
   }
 
@@ -247,7 +262,7 @@ class SteamCmd {
   async _downloadSteamCmd () {
     const tempFile = await tmp.file()
 
-    const responseStream = await axios.get(this.#platformVariables.downloadUrl,
+    const responseStream = await axios.get(this.#downloadUrl,
       { responseType: 'stream' })
 
     const tempFileWriteStream = fs.createWriteStream(tempFile.path)
@@ -257,7 +272,7 @@ class SteamCmd {
       tempFileWriteStream.on('finish', resolve)
     })
 
-    await this.#platformVariables.extract(tempFile.path)
+    await this._extractArchive(tempFile.path)
 
     // Cleanup the temp file
     tempFile.cleanup()
@@ -325,6 +340,7 @@ class SteamCmd {
    * to use.
    */
   async prep () {
+    // TODO: create directories
     await this.downloadSteamCmd()
     return this._touch()
   }
@@ -457,4 +473,4 @@ class SteamCmd {
   }
 }
 
-module.exports = SteamCmd
+exports.SteamCmd = SteamCmd
