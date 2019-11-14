@@ -193,6 +193,8 @@ class SteamCmd {
       fileType.minimumBytes,
       0)
 
+    await fileHandle.close()
+
     switch (fileType(buffer).mime) {
       case 'application/gzip':
         return this._extractTar(path)
