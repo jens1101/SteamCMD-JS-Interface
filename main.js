@@ -13,7 +13,6 @@ const fileType = require('file-type')
 
 // TODO: make use of class properties
 // TODO: make use of async generators
-// TODO: add documentation
 
 /**
  * @typedef {Object} RunObj
@@ -205,7 +204,18 @@ class SteamCmd {
     }
   }
 
+  /**
+   * Extracts the Steam CMD executable from the zip file located at the
+   * specified path.
+   * @param {string} path The path to the zip file in which the Steam CMD
+   * executable is located.
+   * @returns {Promise<void>} Resolves once the Steam CMD executable has been
+   * successfully extracted.
+   * @throws {Error} When the executable couldn't be found in the archive.
+   * @private
+   */
   async _extractZip (path) {
+    // Open the zip file
     const zipFile = await new Promise((resolve, reject) => {
       yauzl.open(path,
         { lazyEntries: true },
@@ -215,6 +225,7 @@ class SteamCmd {
         })
     })
 
+    // Find the entry for the Steam CMD executable
     const executableEntry = await new Promise((resolve, reject) => {
       zipFile.on('end', () => {
         reject(new Error('Steam CMD executable not found in archive'))
@@ -231,6 +242,7 @@ class SteamCmd {
       zipFile.readEntry()
     })
 
+    // Extract the executable to its destination path
     await new Promise((resolve, reject) => {
       zipFile.openReadStream(executableEntry, (err, readStream) => {
         if (err) throw err
@@ -243,10 +255,24 @@ class SteamCmd {
       })
     })
 
+    // Finally close the zip
     zipFile.close()
   }
 
+  /**
+   * Extracts the Steam CMD executable from the tar file located at the
+   * specified path. This tar file may be gzipped.
+   * @param {string} path The path to the tar file in which the Steam CMD
+   * executable is located.
+   * @returns {Promise<void>} Resolves once the Steam CMD executable has been
+   * successfully extracted.
+   * @throws {Error} When the executable couldn't be found in the archive.
+   * @private
+   */
   async _extractTar (path) {
+    // Extract the tar file. By using the filter we only extract the Steam CMD
+    // executable.
+
     // noinspection JSUnusedGlobalSymbols
     await tar.extract({
       cwd: this.#options.binDir,
@@ -254,6 +280,15 @@ class SteamCmd {
       file: path,
       filter: (_, entry) => entry.path === this.#exeName
     })
+
+    try {
+      // Test if the file is accessible and executable
+      await fs.promises.access(this.exePath, fs.constants.X_OK)
+    } catch (ex) {
+      // If the Steam CMD executable wasn't extracted then it means that it was
+      // never in the archive to begin with. Throw an error.
+      throw new Error('Steam CMD executable not found in archive')
+    }
   }
 
   /**
