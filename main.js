@@ -85,6 +85,12 @@ class SteamCmd {
   #options = {
     binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
     installDir: path.join(__dirname, 'install_dir'),
+    // TODO: this is an issue, because you only need to login once and then
+    // SteamCMD will store the login details until manually deleted. I think
+    // that instead of making this a property there should be a dedicated login
+    // function. I will have to play around with Steam CMD first though. I think
+    // your username and password are always required, but not your Steam Guard
+    // code.
     username: 'anonymous',
     password: '',
     steamGuardCode: ''
