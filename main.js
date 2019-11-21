@@ -248,10 +248,11 @@ class SteamCmd {
   async _extractTar (path) {
     // noinspection JSUnusedGlobalSymbols
     await tar.extract({
+      cwd: this.#options.binDir,
       strict: true,
       file: path,
-      filter: (_, entry) => entry.fileName === this.#exeName
-    }, path)
+      filter: (_, entry) => entry.path === this.#exeName
+    })
   }
 
   /**
