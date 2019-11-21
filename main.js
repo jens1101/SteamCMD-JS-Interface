@@ -309,6 +309,9 @@ class SteamCmd {
       // The file must be accessible and executable
       await fs.promises.access(this.exePath, fs.constants.X_OK)
     } catch (ex) {
+      // Create the directories if need be
+      await fs.promises.mkdir(this.#options.binDir, { recursive: true })
+
       // If the exe couldn't be found then download it
       return this._downloadSteamCmd()
     }
@@ -447,13 +450,16 @@ class SteamCmd {
    * Can be either 32 or 64. If omitted then this will use the current
    * platform's bitness.
    */
-  updateApp (appId, platformType, platformBitness) {
+  async updateApp (appId, platformType, platformBitness) {
     if (!path.isAbsolute(this.#options.installDir)) {
       // throw an error immediately because SteamCMD doesn't support relative
       // install directories.
       throw new TypeError(
         'installDir must be an absolute path to update an app')
     }
+
+    // Create the install directory if need be
+    await fs.promises.mkdir(this.#options.installDir, { recursive: true })
 
     const commands = [
       this.getLoginStr(),
