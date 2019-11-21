@@ -13,6 +13,7 @@ const fileType = require('file-type')
 
 // TODO: make use of class properties
 // TODO: make use of async generators
+// TODO: add documentation
 
 /**
  * @typedef {Object} RunObj
