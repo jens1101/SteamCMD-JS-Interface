@@ -11,7 +11,6 @@ const yauzl = require('yauzl')
 const tar = require('tar')
 const fileType = require('file-type')
 
-// TODO: correct all warnings
 // TODO: make use of class properties
 // TODO: make use of async generators
 
@@ -346,7 +345,6 @@ class SteamCmd {
    * to use.
    */
   async prep () {
-    // TODO: create directories
     await this.downloadSteamCmd()
     return this._touch()
   }
@@ -358,6 +356,8 @@ class SteamCmd {
    * @returns {RunObj}
    */
   run (commands) {
+    // TODO: this class should be an async generator.
+
     // We want these vars to be set to these values by default. They can still
     // be overwritten by setting them in the `commands` array.
     commands.unshift('@ShutdownOnFailedCommand 1')
