@@ -69,13 +69,19 @@ class SteamCmd {
     STEAM_GUARD_CODE_REQUIRED: 63
   }
 
+  /**
+   * The directory into which the SteamCMD binaries will be downloaded.
+   * @type {string}
+   * @private
+   */
+  #binDir = path.join(__dirname, 'steamcmd_bin', process.platform)
+
   // TODO: each one of these should be a property of this class. Some should be
   // private that can only be initialised upon construction and some public.
   /**
    * All the options that are used by SteamCmd
    * @namespace
-   * @property {string} binDir The directory into which the SteamCMD binaries
-   * will be downloaded.
+   * @property {string} binDir
    * @property {string} installDir The directory into which the steam apps will
    * be downloaded.
    * @property {string} username The username to use for login.
@@ -83,7 +89,6 @@ class SteamCmd {
    * @property {string} steamGuardCode The steam guard code to use for login.
    */
   #options = {
-    binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
     installDir: path.join(__dirname, 'install_dir'),
     // TODO: this is an issue, because you only need to login once and then
     // SteamCMD will store the login details until manually deleted. I think
@@ -155,7 +160,7 @@ class SteamCmd {
    * @type {string}
    */
   get exePath () {
-    return path.join(this.#options.binDir, this.#exeName)
+    return path.join(this.#binDir, this.#exeName)
   }
 
   /**
@@ -291,7 +296,7 @@ class SteamCmd {
 
     // noinspection JSUnusedGlobalSymbols
     await tar.extract({
-      cwd: this.#options.binDir,
+      cwd: this.#binDir,
       strict: true,
       file: path,
       filter: (_, entry) => entry.path === this.#exeName
@@ -362,7 +367,7 @@ class SteamCmd {
       await fs.promises.access(this.exePath, fs.constants.X_OK)
     } catch (ex) {
       // Create the directories if need be
-      await fs.promises.mkdir(this.#options.binDir, { recursive: true })
+      await fs.promises.mkdir(this.#binDir, { recursive: true })
 
       // If the exe couldn't be found then download it
       return this._downloadSteamCmd()
