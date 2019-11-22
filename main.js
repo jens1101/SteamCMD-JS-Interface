@@ -1,6 +1,5 @@
 const path = require('path')
 const fs = require('fs')
-const defaults = require('lodash.defaults')
 const tmp = require('tmp-promise')
 const axios = require('axios')
 const { spawn } = require('child_process')
