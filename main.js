@@ -28,6 +28,14 @@ const fileType = require('file-type')
  * account, update an app, etc.
  */
 class SteamCmd {
+  // TODO: this is how the login issue will be solved:
+  // - Add a "isLoggedIn" function. It will return true if the user is logged
+  // in, and false otherwise
+  // - Add a "login" function that will accept the username (which will
+  // overwrite the class property), the password, and the steam guard code.
+  // It will log the user in. Only the username will be stored in the class.
+
+  // TODO: I think we can delete this.
   /**
    * These are all exit codes that SteamCMD can use. This is not an exhaustive
    * list yet.
@@ -69,71 +77,70 @@ class SteamCmd {
   }
 
   /**
+   * Used to indicate to the constructor that it's being legally called.
+   * `SteamCmd.init` sets this to true and then calls the constructor. If this
+   * is false and the constructor is called then it will throw an exception.
+   * @type {boolean}
+   */
+  static #initialising = false
+
+  /**
    * The directory into which the SteamCMD binaries will be downloaded.
    * @type {string}
    */
-  #binDir = path.join(__dirname, 'steamcmd_bin', process.platform)
+  #binDir
 
   /**
    * The directory into which the steam apps will be downloaded.
    * @type {string}
    */
-  #installDir = path.join(__dirname, 'install_dir')
+  #installDir
 
   /**
    * The username to use for login.
    * @type {string}
    */
-  #username = 'anonymous'
-
-  /**
-   * All the options that are used by SteamCmd
-   * @namespace
-   * @property {string} password The password to use for login.
-   * @property {string} steamGuardCode The steam guard code to use for login.
-   */
-  #options = {
-    // TODO: this is an issue, because you only need to login once and then
-    // SteamCMD will store the login details until manually deleted. I think
-    // that instead of making this a property there should be a dedicated login
-    // function.
-
-    // TODO: this is how the login issue will be solved:
-    // - Add the username as a class property. It will be passed to the
-    // constructor
-    // - Add a "isLoggedIn" function. It will return true if the user is logged
-    // in, and false otherwise
-    // - Add a "login" function that will accept the username (which will
-    // overwrite the class property), the password, and the steam guard code.
-    // It will log the user in. Only the username will be stored in the class.
-
-    // FIXME: A blank steam guard code results in the script getting stuck when
-    // logging in
-    password: '',
-    steamGuardCode: ''
-  }
+  #username
 
   /**
    * The URL from which the Steam CMD executable can be downloaded. Changes
    * depending on the current platform.
    * @type {string}
    */
-  #downloadUrl = ''
+  #downloadUrl
 
   /**
    * The name of the final Steam CMD executable after extraction. Changes
    * depending on the current platform.
    * @type {string}
    */
-  #exeName = ''
+  #exeName
 
   /**
-   * Constructs a new SteamCmd object.
-   * @param {Object} [options={}] The operational options that SteamCmd should
-   * use. Defaults are provided.
+   * Constructs a new SteamCmd instance.
+   * **Note** this may not be called directly and will throw an error in such a
+   * case. Use `SteamCmd.init` instead.
+   * @param binDir
+   * @param installDir
+   * @param username
+   * @see SteamCmd.init
    */
-  constructor (options = {}) {
-    defaults(this.#options, options)
+  constructor (binDir, installDir, username) {
+    // If the `initialising` variable is not set then throw an error. Direct
+    // construction is not allowed.
+    if (!SteamCmd.#initialising) {
+      throw new Error('Constructor may not be called directly. Use ' +
+        '`SteamCmd.init` instead.')
+    }
+
+    // Set the `initialising` variable back to false, otherwise direct
+    // construction will become possible.
+    SteamCmd.#initialising = false
+
+    // Initialise class variables.
+    this.#binDir = binDir
+    this.#installDir = installDir
+    this.#username = username
 
     // Some platform-dependent setup
     switch (process.platform) {
@@ -174,6 +181,7 @@ class SteamCmd {
     return this.#installDir
   }
 
+  // TODO: I think we can delete these
   /**
    * Convenience function that returns an appropriate error message for the
    * given exit code.
@@ -202,9 +210,51 @@ class SteamCmd {
   }
 
   /**
+   * Creates a new SteamCmd instance. This will download the Steam CMD
+   * executable, ensure that it's usable, and then resolve into a new SteamCmd
+   * instance.
+   * @param {string} [binDir] The absolute path to where the Steam CMD
+   * executable will be downloaded to. Defaults to "steamcmd_bin" in the
+   * current directory.
+   * @param {string} [installDir] The absolute path to where Steam apps will be
+   * installed to. Defaults to "install_dir" in the current directory.
+   * @param {string} [username='anonymous'] The username to log into Steam.
+   * @returns {Promise<SteamCmd>} Resolves into a ready-to-be-used SteamCmd
+   * instance
+   */
+  static async init (
+    binDir = path.join(__dirname, 'steamcmd_bin', process.platform),
+    installDir = path.join(__dirname, 'install_dir'),
+    username = 'anonymous') {
+    // Set the `initialising` variable to true to indicate to the constructor
+    // that it's being legally called.
+    SteamCmd.#initialising = true
+
+    // Construct the new SteamCmd instance
+    const steamCmd = new SteamCmd(binDir, installDir, username)
+
+    // Download the Steam CMD executable
+    await steamCmd.downloadSteamCmd()
+
+    // Test that the executable is in working condition
+    // FIXME: the code below doesn't work any more
+    // await new Promise((resolve, reject) => {
+    //   const { outputStream } = steamCmd.run([])
+    //
+    //   outputStream.on('close', () => { resolve() })
+    //   outputStream.on('error', (err) => { reject(err) })
+    // })
+
+    // Finally return the ready-to-be-used instance
+    return steamCmd
+  }
+
+  /**
    * Extracts the Steam CMD executable from the given file path.
    * @param {string} path The path to the archive in which the Steam CMD
    * executable resides.
+   * @returns {Promise<void>} Resolves once the executable has been extracted.
+   * @private
    */
   async _extractArchive (path) {
     const fileHandle = await fs.promises.open(path, 'r')
@@ -315,11 +365,12 @@ class SteamCmd {
   }
 
   /**
-   * Downloads and unzips SteamCMD for the current platform into the `binDir`
-   * defined in `this.#options`.
+   * Downloads and unzips Steam CMD for the current platform into the `binDir`.
+   * If the executable already exists then nothing will be downloaded and this
+   * will simply resolve.
+   * @returns {Promise<void>} Resolves when the Steam CMD executable has been
+   * successfully downloaded and extracted. Rejects otherwise.
    * @private
-   * @returns {Promise} Resolves when the SteamCMD binary has been successfully
-   * downloaded and extracted. Rejects otherwise.
    */
   async _downloadSteamCmd () {
     const tempFile = await tmp.file()
@@ -341,27 +392,9 @@ class SteamCmd {
   }
 
   /**
-   * Makes sure that SteamCMD is usable on this system.
-   * *Note*: this can take a very long time to run for the first time after
-   * downloading SteamCMD. This is because SteamCMD will first do an update
-   * before running the command and quitting.
-   * @private
-   * @returns {Promise} Resovles once the SteamCMD process exited normally.
-   * Rejects otherwise.
-   */
-  async _touch () {
-    return new Promise((resolve, reject) => {
-      const { outputStream } = this.run([])
-
-      outputStream.on('close', () => { resolve() })
-      outputStream.on('error', (err) => { reject(err) })
-    })
-  }
-
-  /**
    * Download the SteamCMD binaries if they are not installed in the current
    * install directory.
-   * @returns {Promise} Resolves once the binaries have been downloaded.
+   * @returns {Promise<void>} Resolves once the binaries have been downloaded.
    */
   async downloadSteamCmd () {
     try {
@@ -374,39 +407,6 @@ class SteamCmd {
       // If the exe couldn't be found then download it
       return this._downloadSteamCmd()
     }
-  }
-
-  /**
-   * Gets the login command string based on the user config in `this.#options`
-   * @returns {string}
-   */
-  getLoginStr () {
-    const login = ['login', `"${this.#username}"`]
-
-    if (this.#options.password) {
-      login.push(`"${this.#options.password}"`)
-    }
-
-    if (this.#options.steamGuardCode) {
-      login.push(`"${this.#options.steamGuardCode}"`)
-    }
-
-    return login.join(' ')
-  }
-
-  /**
-   * Convenience function that ensures that SteamCMD is ready to use. It
-   * downloads the SteamCMD binaries and runs an empty script. Once that
-   * finishes then SteamCMD is ready to use.
-   * *Note*: this can take a very long time, especially if the binaries had to
-   * be freshly downloaded. This is because SteamCMD will first do an update
-   * before running the command.
-   * @returns {Promise} Resolves once SteamCMD has been downloaded and is ready
-   * to use.
-   */
-  async prep () {
-    await this.downloadSteamCmd()
-    return this._touch()
   }
 
   /**
@@ -525,7 +525,7 @@ class SteamCmd {
     await fs.promises.mkdir(this.#installDir, { recursive: true })
 
     const commands = [
-      this.getLoginStr(),
+      `login "${this.#username}"`,
       `force_install_dir "${this.#installDir}"`,
       'app_update ' + appId
     ]
