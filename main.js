@@ -433,6 +433,7 @@ class SteamCmd {
       // TODO this doesn't feel right. I should instead defer the process kill
       // until after the process has spawned or (possibly) prevent the process
       // from spawning at all.
+      // TODO: this function should be a separate instance function.
       killSteamCmd: () => {}
     }
 
@@ -449,6 +450,8 @@ class SteamCmd {
       let exitCode = SteamCmd.EXIT_CODES.NO_ERROR
 
       runObj.killSteamCmd = () => {
+        // TODO: use the more popular library:
+        // https://www.npmjs.com/package/tree-kill
         treeKill(steamcmdProcess.pid, 'SIGTERM', (err) => {
           if (err) {
             runObj.outputStream.emit('error', err)
