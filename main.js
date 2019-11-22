@@ -88,9 +88,19 @@ class SteamCmd {
     // TODO: this is an issue, because you only need to login once and then
     // SteamCMD will store the login details until manually deleted. I think
     // that instead of making this a property there should be a dedicated login
-    // function. I will have to play around with Steam CMD first though. I think
-    // your username and password are always required, but not your Steam Guard
-    // code.
+    // function.
+
+    // TODO: this is how the login issue will be solved:
+    // - Add the username as a class property. It will be passed to the
+    // constructor
+    // - Add a "isLoggedIn" function. It will return true if the user is logged
+    // in, and false otherwise
+    // - Add a "login" function that will accept the username (which will
+    // overwrite the class property), the password, and the steam guard code.
+    // It will log the user in. Only the username will be stored in the class.
+
+    // FIXME: A blank steam guard code results in the script getting stuck when
+    // logging in
     username: 'anonymous',
     password: '',
     steamGuardCode: ''
@@ -449,6 +459,9 @@ class SteamCmd {
         currLine = lines.pop()
 
         for (const line of lines) {
+          // FIXME: steamCMD no longer uses these exit codes. It now fails with
+          // a message. For example: "FAILED login with result code Two-factor
+          // code mismatch"
           if (line.includes('FAILED with result code 5')) {
             exitCode = SteamCmd.EXIT_CODES.INVALID_PASSWORD
           } else if (line.includes('FAILED with result code 63')) {
