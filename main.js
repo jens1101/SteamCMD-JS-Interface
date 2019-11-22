@@ -81,14 +81,15 @@ class SteamCmd {
    */
   #installDir = path.join(__dirname, 'install_dir')
 
-  // TODO: each one of these should be a property of this class. Some should be
-  // private that can only be initialised upon construction and some public.
+  /**
+   * The username to use for login.
+   * @type {string}
+   */
+  #username = 'anonymous'
+
   /**
    * All the options that are used by SteamCmd
    * @namespace
-   * @property {string} binDir
-   * @property {string} installDir
-   * @property {string} username The username to use for login.
    * @property {string} password The password to use for login.
    * @property {string} steamGuardCode The steam guard code to use for login.
    */
@@ -109,7 +110,6 @@ class SteamCmd {
 
     // FIXME: A blank steam guard code results in the script getting stuck when
     // logging in
-    username: 'anonymous',
     password: '',
     steamGuardCode: ''
   }
@@ -382,7 +382,7 @@ class SteamCmd {
    * @returns {string}
    */
   getLoginStr () {
-    const login = ['login', `"${this.#options.username}"`]
+    const login = ['login', `"${this.#username}"`]
 
     if (this.#options.password) {
       login.push(`"${this.#options.password}"`)
