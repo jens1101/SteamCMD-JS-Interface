@@ -72,9 +72,14 @@ class SteamCmd {
   /**
    * The directory into which the SteamCMD binaries will be downloaded.
    * @type {string}
-   * @private
    */
   #binDir = path.join(__dirname, 'steamcmd_bin', process.platform)
+
+  /**
+   * The directory into which the steam apps will be downloaded.
+   * @type {string}
+   */
+  #installDir = path.join(__dirname, 'install_dir')
 
   // TODO: each one of these should be a property of this class. Some should be
   // private that can only be initialised upon construction and some public.
@@ -82,14 +87,12 @@ class SteamCmd {
    * All the options that are used by SteamCmd
    * @namespace
    * @property {string} binDir
-   * @property {string} installDir The directory into which the steam apps will
-   * be downloaded.
+   * @property {string} installDir
    * @property {string} username The username to use for login.
    * @property {string} password The password to use for login.
    * @property {string} steamGuardCode The steam guard code to use for login.
    */
   #options = {
-    installDir: path.join(__dirname, 'install_dir'),
     // TODO: this is an issue, because you only need to login once and then
     // SteamCMD will store the login details until manually deleted. I think
     // that instead of making this a property there should be a dedicated login
@@ -169,7 +172,7 @@ class SteamCmd {
    * @type {string}
    */
   get installDir () {
-    return this.#options.installDir
+    return this.#installDir
   }
 
   /**
@@ -512,7 +515,7 @@ class SteamCmd {
    * platform's bitness.
    */
   async updateApp (appId, platformType, platformBitness) {
-    if (!path.isAbsolute(this.#options.installDir)) {
+    if (!path.isAbsolute(this.#installDir)) {
       // throw an error immediately because SteamCMD doesn't support relative
       // install directories.
       throw new TypeError(
@@ -520,11 +523,11 @@ class SteamCmd {
     }
 
     // Create the install directory if need be
-    await fs.promises.mkdir(this.#options.installDir, { recursive: true })
+    await fs.promises.mkdir(this.#installDir, { recursive: true })
 
     const commands = [
       this.getLoginStr(),
-      `force_install_dir "${this.#options.installDir}"`,
+      `force_install_dir "${this.#installDir}"`,
       'app_update ' + appId
     ]
 
