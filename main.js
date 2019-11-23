@@ -12,6 +12,7 @@ const fileType = require('file-type')
 
 // TODO: make use of class properties
 // TODO: make use of async generators
+// TODO: update Readme
 
 /**
  * @typedef {Object} RunObj
@@ -179,34 +180,6 @@ class SteamCmd {
    */
   get installDir () {
     return this.#installDir
-  }
-
-  // TODO: I think we can delete these
-  /**
-   * Convenience function that returns an appropriate error message for the
-   * given exit code.
-   * @param exitCode The exit code to get a message for.
-   * @returns {string}
-   */
-  static getErrorMessage (exitCode) {
-    switch (exitCode) {
-      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
-        return 'The SteamCMD process was killed prematurely'
-      case SteamCmd.EXIT_CODES.NO_ERROR:
-        return 'No error'
-      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
-        return 'An unknown error occurred'
-      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
-        return 'A user was already logged into StremCMD'
-      case SteamCmd.EXIT_CODES.NO_CONNECTION:
-        return 'SteamCMD cannot connect to the internet'
-      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
-        return 'Invalid password'
-      case SteamCmd.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED:
-        return 'A Steam Guard code was required to log in'
-      default:
-        return `An unknown error occurred. Exit code: ${exitCode}`
-    }
   }
 
   /**
