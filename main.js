@@ -229,13 +229,8 @@ class SteamCmd {
     await steamCmd.downloadSteamCmd()
 
     // Test that the executable is in working condition
-    // FIXME: the code below doesn't work any more
-    // await new Promise((resolve, reject) => {
-    //   const { outputStream } = steamCmd.run([])
-    //
-    //   outputStream.on('close', () => { resolve() })
-    //   outputStream.on('error', (err) => { reject(err) })
-    // })
+    // eslint-disable-next-line no-unused-vars
+    for await (const line of steamCmd.run([])) {}
 
     // Finally return the ready-to-be-used instance
     return steamCmd
