@@ -3,15 +3,16 @@ const fs = require('fs')
 const tmp = require('tmp-promise')
 const axios = require('axios')
 const { spawn } = require('child_process')
-const { Readable } = require('stream')
 const stripAnsi = require('strip-ansi')
-const treeKill = require('tree-kill')
 const yauzl = require('yauzl')
 const tar = require('tar')
 const fileType = require('file-type')
+const { Readable } = require('stream')
 
 // TODO: make use of class properties
 // TODO: make use of async generators
+// TODO: update Readme
+// TODO: This class is bloated. Create a utility file that this class can use.
 
 /**
  * @typedef {Object} RunObj
@@ -117,12 +118,21 @@ class SteamCmd {
   #exeName
 
   /**
+   * The currently running Steam CMD process. If no process is running then this
+   * will be `null`.
+   * @type {ChildProcess|null}
+   */
+  #currentSteamCmdProcess = null
+
+  /**
    * Constructs a new SteamCmd instance.
    * **Note** this may not be called directly and will throw an error in such a
    * case. Use `SteamCmd.init` instead.
-   * @param binDir
-   * @param installDir
-   * @param username
+   * @param {string} binDir The absolute path to where the Steam CMD
+   * executable will be downloaded to.
+   * @param {string} installDir The absolute path to where Steam apps will be
+   * installed to.
+   * @param {string} username The username to log into Steam.
    * @see SteamCmd.init
    */
   constructor (binDir, installDir, username) {
@@ -165,6 +175,16 @@ class SteamCmd {
   }
 
   /**
+   * Returns the currently running Steam CMD process. This can be used to
+   * forcefully kill the process if something goes wrong. If no Steam CMD
+   * process is running then this returns `null` instead.
+   * @returns {ChildProcess|null}
+   */
+  get currSteamCmdProcess () {
+    return this.#currentSteamCmdProcess
+  }
+
+  /**
    * A publicly accessible getter to get the Steam CMD executable
    * @type {string}
    */
@@ -179,34 +199,6 @@ class SteamCmd {
    */
   get installDir () {
     return this.#installDir
-  }
-
-  // TODO: I think we can delete these
-  /**
-   * Convenience function that returns an appropriate error message for the
-   * given exit code.
-   * @param exitCode The exit code to get a message for.
-   * @returns {string}
-   */
-  static getErrorMessage (exitCode) {
-    switch (exitCode) {
-      case SteamCmd.EXIT_CODES.PROCESS_KILLED:
-        return 'The SteamCMD process was killed prematurely'
-      case SteamCmd.EXIT_CODES.NO_ERROR:
-        return 'No error'
-      case SteamCmd.EXIT_CODES.UNKNOWN_ERROR:
-        return 'An unknown error occurred'
-      case SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN:
-        return 'A user was already logged into StremCMD'
-      case SteamCmd.EXIT_CODES.NO_CONNECTION:
-        return 'SteamCMD cannot connect to the internet'
-      case SteamCmd.EXIT_CODES.INVALID_PASSWORD:
-        return 'Invalid password'
-      case SteamCmd.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED:
-        return 'A Steam Guard code was required to log in'
-      default:
-        return `An unknown error occurred. Exit code: ${exitCode}`
-    }
   }
 
   /**
@@ -409,99 +401,76 @@ class SteamCmd {
     }
   }
 
-  /**
-   * Runs the specified commands in a new SteamCMD instance. Internally this
-   * function creates a temporary file, writes the commands to it, executes the
-   * file as a script, and then finally quits.
-   * @returns {RunObj}
-   */
-  run (commands) {
-    // TODO: this class should be an async generator.
-
-    // We want these vars to be set to these values by default. They can still
-    // be overwritten by setting them in the `commands` array.
+  async * run (commands) {
+    // By default we want:
+    // - Steam CMD to shutdown once it encountered an error
+    // - Steam CMD should not prompt for a password, because stdin is not
+    //   available in this context.
+    //
+    // These options can still be overwritten by setting them in the `commands`
+    // array.
     commands.unshift('@ShutdownOnFailedCommand 1')
     commands.unshift('@NoPromptForPassword 1')
-    // Appending the 'quit' command to make sure that SteamCMD will quit.
+
+    // Appending the 'quit' command to make sure that SteamCMD will always quit.
     commands.push('quit')
 
-    const runObj = {
-      outputStream: new Readable({
-        encoding: 'utf8',
-        read () {}
-      }),
-      // TODO this doesn't feel right. I should instead defer the process kill
-      // until after the process has spawned or (possibly) prevent the process
-      // from spawning at all.
-      // TODO: this function should be a separate instance function.
-      killSteamCmd: () => {}
-    }
+    // Create a temporary file that will hold our commands
+    const commandFile = await tmp.file()
+    await fs.promises.appendFile(commandFile.path, commands.join('\n') + '\n')
 
-    tmp.file().then(commandFile => {
-      return fs.promises.appendFile(commandFile.path,
-        commands.join('\n') + '\n')
-        .then(() => commandFile)
-    }).then(commandFile => {
-      const steamcmdProcess = spawn(this.exePath, [
-        `+runscript ${commandFile.path}`
-      ])
+    this.#currentSteamCmdProcess = spawn(this.exePath, [
+      `+runscript ${commandFile.path}`
+    ])
 
-      let currLine = ''
-      let exitCode = SteamCmd.EXIT_CODES.NO_ERROR
+    // noinspection JSUnresolvedVariable
+    const stdOutIterator = Readable.from(this.#currentSteamCmdProcess.stdout,
+      { encoding: 'utf8' })
 
-      runObj.killSteamCmd = () => {
-        // TODO: use the more popular library:
-        // https://www.npmjs.com/package/tree-kill
-        treeKill(steamcmdProcess.pid, 'SIGTERM', (err) => {
-          if (err) {
-            runObj.outputStream.emit('error', err)
-            runObj.outputStream.destroy()
-          }
+    for await (const outputLine of this._chunksToLines(stdOutIterator)) {
+      const line = `${stripAnsi(outputLine)}`
 
-          // If no error occurred then this will trigger the "close" event on
-          // the SteamCMD process; this will then wrap-up everything.
-        })
+      // If Steam CMD encountered an error then it always starts with "FAILED".
+      // In such a case simply throw the current line as an error.
+      if (/^FAILED/.test(line)) {
+        throw new Error(line)
       }
 
-      steamcmdProcess.stdout.on('data', (data) => {
-        currLine += stripAnsi(data.toString('utf8')).replace(/\r\n/g, '\n')
-        const lines = currLine.split('\n')
-        currLine = lines.pop()
+      yield line
+    }
 
-        for (const line of lines) {
-          // FIXME: steamCMD no longer uses these exit codes. It now fails with
-          // a message. For example: "FAILED login with result code Two-factor
-          // code mismatch"
-          if (line.includes('FAILED with result code 5')) {
-            exitCode = SteamCmd.EXIT_CODES.INVALID_PASSWORD
-          } else if (line.includes('FAILED with result code 63')) {
-            exitCode = SteamCmd.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED
-          } else if (line.includes('FAILED with result code 2')) {
-            exitCode = SteamCmd.EXIT_CODES.ALREADY_LOGGED_IN
-          } else if (line.includes('FAILED with result code 3')) {
-            exitCode = SteamCmd.EXIT_CODES.NO_CONNECTION
-          }
+    // Set the current Steam CMD process to `null` because the process finished
+    // running.
+    this.#currentSteamCmdProcess = null
 
-          runObj.outputStream.push(line)
-        }
-      })
+    // Cleanup the temp file
+    commandFile.cleanup()
+  }
 
-      steamcmdProcess.on('error', (err) => {
-        runObj.outputStream.emit('error', err)
-        runObj.outputStream.destroy()
-      })
+  /**
+   * @param chunkIterable An asynchronous or synchronous iterable
+   * over “chunks” (arbitrary strings)
+   * @returns An asynchronous iterable over “lines”
+   * (strings with at most one newline that always appears at the end)
+   */
+  async * _chunksToLines (chunkIterable) {
+    let previous = ''
+    for await (const chunk of chunkIterable) {
+      // Windows uses CRLF. For consistency we replace it with a plain LF.
+      previous += chunk.replace(/\r\n/g, '\n')
+      while (true) {
+        const eolIndex = previous.indexOf('\n')
+        if (eolIndex < 0) break
 
-      steamcmdProcess.on('close', (code) => {
-        if (exitCode === SteamCmd.EXIT_CODES.NO_ERROR) {
-          exitCode = code
-        }
+        const line = previous.slice(0, eolIndex + 1)
+        yield line
+        previous = previous.slice(eolIndex + 1)
+      }
+    }
 
-        runObj.outputStream.emit('close', exitCode)
-        runObj.outputStream.destroy()
-      })
-    })
-
-    return runObj
+    if (previous.length > 0) {
+      yield previous
+    }
   }
 
   /**
