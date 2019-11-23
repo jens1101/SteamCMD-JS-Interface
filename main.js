@@ -427,6 +427,10 @@ class SteamCmd {
 
       // If Steam CMD encountered an error then it always starts with "FAILED".
       // In such a case simply throw the current line as an error.
+      // FIXME: this doesn't actually work. For example: login without password
+      // generates an error, but this doesn't trigger. I think I'll have to
+      // monitor the exit codes of the process like I did before. I should also
+      // see if something is being output to stderr.
       if (/^FAILED/.test(line)) {
         throw new Error(line)
       }
