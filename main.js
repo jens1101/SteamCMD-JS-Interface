@@ -443,10 +443,10 @@ class SteamCmd {
   }
 
   /**
-   * @param chunkIterable An asynchronous or synchronous iterable
-   * over “chunks” (arbitrary strings)
-   * @returns An asynchronous iterable over “lines”
-   * (strings with at most one newline that always appears at the end)
+   * @param chunkIterable An asynchronous or synchronous iterable over "chunks"
+   * (arbitrary strings)
+   * @returns An asynchronous iterable over "lines" (strings with at most one
+   * newline that always appears at the end)
    */
   async * _chunksToLines (chunkIterable) {
     let previous = ''
