@@ -15,15 +15,6 @@ const { Readable } = require('stream')
 // TODO: This class is bloated. Create a utility file that this class can use.
 
 /**
- * @typedef {Object} RunObj
- * @property {Readable} outputStream A readable stream that returns the output
- * of the SteamCMD process. It also closes with the correct exit code.
- * @see EXIT_CODES
- * @property {Function} killSteamCmd A function that, once called, kills the
- * SteamCMD process and destroys `outputStream`.
- */
-
-/**
  * This class acts as an intermediate layer between SteamCMD and NodeJS. It
  * allows you to download the SteamCMD binaries, login with a custom user
  * account, update an app, etc.
@@ -414,38 +405,52 @@ class SteamCmd {
     const commandFile = await tmp.file()
     await fs.promises.appendFile(commandFile.path, commands.join('\n') + '\n')
 
-    this.#currentSteamCmdProcess = spawn(this.exePath, [
+    // Spawn Steam CMD as a process
+    const steamCmdProcess = spawn(this.exePath, [
       `+runscript ${commandFile.path}`
     ])
+    this.#currentSteamCmdProcess = steamCmdProcess
 
-    // noinspection JSUnresolvedVariable
-    const stdOutIterator = Readable.from(this.#currentSteamCmdProcess.stdout,
+    // Create a promise that will resolve once the Steam CMD process closed.
+    const closePromise = this.getProcessClosePromise(steamCmdProcess)
+
+    // Create a generator from the process' stdout. This will automatically
+    // convert the output data to UTF-8. However output is sent as chunks,
+    // instead of line-by-line.
+    const stdOutIterator = Readable.from(steamCmdProcess.stdout,
       { encoding: 'utf8' })
 
+    // Convert the chunks to lines and then iterate over them.
     for await (const outputLine of this._chunksToLines(stdOutIterator)) {
-      const line = `${stripAnsi(outputLine)}`
-
-      // If Steam CMD encountered an error then it always starts with "FAILED".
-      // In such a case simply throw the current line as an error.
-      // FIXME: this doesn't actually work. For example: login without password
-      // generates an error, but this doesn't trigger. I think I'll have to
-      // monitor the exit codes of the process like I did before. I should also
-      // see if something is being output to stderr.
-      if (/^FAILED/.test(line)) {
-        throw new Error(line)
-      }
-
-      yield line
+      // Strip any ANSI style formatting from the current line of output and
+      // then yield it.
+      yield `${stripAnsi(outputLine)}`
     }
 
-    // Set the current Steam CMD process to `null` because the process finished
-    // running.
+    // Once the output has been iterated over then wait for the process to exit
+    // and get the exit code
+    const exitCode = await closePromise
+
+    // Set the current Steam CMD process to `null` because the process
+    // finished running.
     this.#currentSteamCmdProcess = null
 
     // Cleanup the temp file
     commandFile.cleanup()
+
+    // Throw an error if the exit code was non-zero.
+    if (exitCode > 0) {
+      // TODO: create nicer error messages. Use the function that was deleted.
+      throw new Error(`ERROR ${exitCode}`)
+    }
   }
 
+  // TODO: this could be made into a utility function
+  getProcessClosePromise (process) {
+    return new Promise(resolve => process.on('close', code => resolve(code)))
+  }
+
+  // TODO: this function can move to a utility file.
   /**
    * @param chunkIterable An asynchronous or synchronous iterable over "chunks"
    * (arbitrary strings)
