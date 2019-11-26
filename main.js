@@ -518,6 +518,7 @@ class SteamCmd {
     }
   }
 
+  // TODO: rewrite this.
   /**
    * Downloads or updates the specified Steam app. If this app has been
    * partially downloaded in the current install directory then this will
