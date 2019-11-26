@@ -196,25 +196,31 @@ class SteamCmd {
    * Creates a new SteamCmd instance. This will download the Steam CMD
    * executable, ensure that it's usable, and then resolve into a new SteamCmd
    * instance.
-   * @param {string} [binDir] The absolute path to where the Steam CMD
+   * @param {Object} [options] A set of options that affect how SteamCmd works.
+   * @param {string} [options.binDir] The absolute path to where the Steam CMD
    * executable will be downloaded to. Defaults to "steamcmd_bin" in the
    * current directory.
-   * @param {string} [installDir] The absolute path to where Steam apps will be
-   * installed to. Defaults to "install_dir" in the current directory.
-   * @param {string} [username='anonymous'] The username to log into Steam.
+   * @param {string} [options.installDir] The absolute path to where Steam apps
+   * will be installed to. Defaults to "install_dir" in the current directory.
+   * @param {string} [options.username] The username to log into Steam.
+   * Defaults to 'anonymous'.
    * @returns {Promise<SteamCmd>} Resolves into a ready-to-be-used SteamCmd
    * instance
    */
-  static async init (
-    binDir = path.join(__dirname, 'steamcmd_bin', process.platform),
-    installDir = path.join(__dirname, 'install_dir'),
-    username = 'anonymous') {
+  static async init (options) {
     // Set the `initialising` variable to true to indicate to the constructor
     // that it's being legally called.
     SteamCmd.#initialising = true
 
+    const allOptions = Object.assign({
+      binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
+      installDir: path.join(__dirname, 'install_dir'),
+      username: 'anonymous'
+    }, options)
+
     // Construct the new SteamCmd instance
-    const steamCmd = new SteamCmd(binDir, installDir, username)
+    const steamCmd = new SteamCmd(allOptions.binDir, allOptions.installDir,
+      allOptions.username)
 
     // Download the Steam CMD executable
     await steamCmd.downloadSteamCmd()
