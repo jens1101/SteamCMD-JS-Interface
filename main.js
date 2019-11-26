@@ -9,8 +9,6 @@ const tar = require('tar')
 const fileType = require('file-type')
 const { Readable } = require('stream')
 
-// TODO: make use of class properties
-// TODO: make use of async generators
 // TODO: update Readme
 // TODO: This class is bloated. Create a utility file that this class can use.
 
@@ -20,13 +18,6 @@ const { Readable } = require('stream')
  * account, update an app, etc.
  */
 class SteamCmd {
-  // TODO: this is how the login issue will be solved:
-  // - Add a "isLoggedIn" function. It will return true if the user is logged
-  // in, and false otherwise
-  // - Add a "login" function that will accept the username (which will
-  // overwrite the class property), the password, and the steam guard code.
-  // It will log the user in. Only the username will be stored in the class.
-
   // TODO: I think we can delete this.
   /**
    * These are all exit codes that SteamCMD can use. This is not an exhaustive
@@ -231,6 +222,50 @@ class SteamCmd {
 
     // Finally return the ready-to-be-used instance
     return steamCmd
+  }
+
+  /**
+   * Log in to a Steam account.
+   * @param {string} username The username of the account to which to log in
+   * to. Can be "anonymous" for anonymous login. This will update the username
+   * that's stored internally.
+   * @param {string} [password] The password for the above account. This can be
+   * omitted only if you're logging in anonymously, or if your login
+   * credentials have already been saved by Steam CMD.
+   * @param {string} [steamGuardCode] The Steam Guard code for the above
+   * account. This can be omitted only if you're logging in anonymously, if
+   * your login credentials have already been saved by Steam CMD, or if your
+   * account doesn't have Steam Guard enabled.
+   * @returns {Promise<void>} Resolves once the user has been successfully
+   * logged in.
+   * @throws An error if the login failed in any way.
+   */
+  async login (username, password, steamGuardCode) {
+    this.#username = username
+
+    const login = ['login', `"${this.#username}"`]
+    if (password) login.push(`"${password}"`)
+    if (steamGuardCode) login.push(`"${steamGuardCode}"`)
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const line of this.run([login.join(' ')])) {}
+  }
+
+  /**
+   * Convenience function to test if the username that's stored internally can
+   * log into Steam without requiring a password or Steam Guard code. This can
+   * only succeed if Steam CMD previously logged into this account and the
+   * account's credentials are still saved locally.
+   * @returns {Promise<boolean>} Resolves into `true` if the stored user can
+   * log into Steam, `false` otherwise.
+   */
+  async isLoggedIn () {
+    try {
+      await this.login(this.#username)
+      return true
+    } catch {
+      return false
+    }
   }
 
   /**
