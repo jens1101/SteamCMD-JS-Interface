@@ -113,6 +113,14 @@ class SteamCmd {
   #currentSteamCmdProcess = null
 
   /**
+   * Whether or not all the output of the `run` command will be logged to the
+   * console. Useful for debugging.
+   * @type {boolean}
+   * @see SteamCmd.run
+   */
+  enableDebugLogging = false
+
+  /**
    * Constructs a new SteamCmd instance.
    * **Note** this may not be called directly and will throw an error in such a
    * case. Use `SteamCmd.init` instead.
@@ -471,7 +479,11 @@ class SteamCmd {
     for await (const outputLine of this._chunksToLines(stdOutIterator)) {
       // Strip any ANSI style formatting from the current line of output and
       // then yield it.
-      yield `${stripAnsi(outputLine)}`
+      const line = `${stripAnsi(outputLine)}`
+
+      this.enableDebugLogging && console.log(line)
+
+      yield line
     }
 
     // Once the output has been iterated over then wait for the process to exit
