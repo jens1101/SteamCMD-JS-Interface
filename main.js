@@ -53,6 +53,12 @@ class SteamCmd {
      */
     INVALID_PASSWORD: 5,
     /**
+     * Indicates that the application that you tried to update failed to
+     * install. This can happen if you don't own it, if you don't have enough
+     * hard drive space, or if a network error occurred.
+     */
+    FAILED_TO_INSTALL: 8,
+    /**
      * Indicated that a Steam guard code is required before the login can
      * finish.
      */
