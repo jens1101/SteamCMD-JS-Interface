@@ -518,7 +518,6 @@ class SteamCmd {
     }
   }
 
-  // TODO: rewrite this.
   /**
    * Downloads or updates the specified Steam app. If this app has been
    * partially downloaded in the current install directory then this will
@@ -531,7 +530,7 @@ class SteamCmd {
    * Can be either 32 or 64. If omitted then this will use the current
    * platform's bitness.
    */
-  async updateApp (appId, platformType, platformBitness) {
+  async * updateApp (appId, platformType, platformBitness) {
     if (!path.isAbsolute(this.#installDir)) {
       // throw an error immediately because SteamCMD doesn't support relative
       // install directories.
@@ -559,7 +558,7 @@ class SteamCmd {
       commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
     }
 
-    return this.run(commands)
+    yield * this.run(commands)
   }
 }
 
