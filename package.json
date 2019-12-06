@@ -18,6 +18,7 @@
   "dependencies": {
     "axios": "^0.19.0",
     "file-type": "^12.4.0",
+    "node-pty": "^0.9.0",
     "strip-ansi": "^4.0.0",
     "tar": "^5.0.5",
     "tmp-promise": "^1.1.0",

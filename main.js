@@ -2,7 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const tmp = require('tmp-promise')
 const axios = require('axios')
-const { spawn } = require('child_process')
+const pty = require('node-pty')
 const stripAnsi = require('strip-ansi')
 const yauzl = require('yauzl')
 const tar = require('tar')
@@ -108,9 +108,9 @@ class SteamCmd {
   /**
    * The currently running Steam CMD process. If no process is running then this
    * will be `null`.
-   * @type {ChildProcess|null}
+   * @type {IPty|null}
    */
-  #currentSteamCmdProcess = null
+  #currentSteamCmdPty = null
 
   /**
    * Whether or not all the output of the `run` command will be logged to the
@@ -177,7 +177,7 @@ class SteamCmd {
    * @returns {ChildProcess|null}
    */
   get currSteamCmdProcess () {
-    return this.#currentSteamCmdProcess
+    return this.#currentSteamCmdPty
   }
 
   /**
@@ -461,27 +461,19 @@ class SteamCmd {
     await fs.promises.appendFile(commandFile.path, commands.join('\n') + '\n')
 
     // Spawn Steam CMD as a process
-    const steamCmdProcess = spawn(this.exePath, [
+    const steamCmdPty = pty.spawn(this.exePath, [
       `+runscript ${commandFile.path}`
-    ])
-    this.#currentSteamCmdProcess = steamCmdProcess
+    ], {
+      cwd: __dirname
+    })
+
+    this.#currentSteamCmdPty = steamCmdPty
 
     // Create a promise that will resolve once the Steam CMD process closed.
-    const closePromise = this.getProcessClosePromise(steamCmdProcess)
-
-    // Create a generator from the process' stdout. This will automatically
-    // convert the output data to UTF-8. However output is sent as chunks,
-    // instead of line-by-line.
-    const stdOutIterator = Readable.from(steamCmdProcess.stdout,
-      { encoding: 'utf8' })
+    const exitPromise = this.getPtyExitPromise(steamCmdPty)
 
     // Convert the chunks to lines and then iterate over them.
-    for await (const outputLine of this._chunksToLines(stdOutIterator)) {
-      // FIXME: the buffer size of this is too large and causes too large
-      // chunks to be returned via stdout. I can't change this directly, however
-      // using a pseudo terminal (pty) should force the underlying OS to return
-      // output line by line, instead of in chunks.
-
+    for await (const outputLine of this.getPtyData(steamCmdPty)) {
       // Strip any ANSI style formatting from the current line of output and
       // then yield it.
       const line = `${stripAnsi(outputLine)}`
@@ -493,11 +485,11 @@ class SteamCmd {
 
     // Once the output has been iterated over then wait for the process to exit
     // and get the exit code
-    const exitCode = await closePromise
+    const exitCode = await exitPromise
 
     // Set the current Steam CMD process to `null` because the process
     // finished running.
-    this.#currentSteamCmdProcess = null
+    this.#currentSteamCmdPty = null
 
     // Cleanup the temp file
     commandFile.cleanup()
@@ -510,8 +502,36 @@ class SteamCmd {
   }
 
   // TODO: this could be made into a utility function
-  getProcessClosePromise (process) {
-    return new Promise(resolve => process.on('close', code => resolve(code)))
+  async getPtyExitPromise (pty) {
+    return new Promise(resolve => {
+      const disposeExitListener = pty.onExit(code => {
+        resolve(code)
+        disposeExitListener()
+      })
+    })
+  }
+
+  async * getPtyData (pty) {
+    let ptyClosed = false
+    let currentResolve
+    const getPromise = () => new Promise((resolve) => {
+      currentResolve = resolve
+    })
+
+    const disposeDataListener = pty.onData(data => {
+      currentResolve(data)
+    })
+
+    const disposeExitListener = pty.onExit(() => {
+      ptyClosed = true
+      disposeExitListener()
+      disposeDataListener()
+    })
+
+    // eslint-disable-next-line no-unmodified-loop-condition
+    while (!ptyClosed) {
+      yield await getPromise()
+    }
   }
 
   // TODO: this function can move to a utility file.
