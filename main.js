@@ -567,7 +567,7 @@ class SteamCmd {
     const commands = [
       `login "${this.#username}"`,
       `force_install_dir "${this.#installDir}"`,
-      'app_update ' + appId
+      `app_update ${appId}`
     ]
 
     if (platformBitness === 32 ||
