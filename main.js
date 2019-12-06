@@ -477,6 +477,11 @@ class SteamCmd {
 
     // Convert the chunks to lines and then iterate over them.
     for await (const outputLine of this._chunksToLines(stdOutIterator)) {
+      // FIXME: the buffer size of this is too large and causes too large
+      // chunks to be returned via stdout. I can't change this directly, however
+      // using a pseudo terminal (pty) should force the underlying OS to return
+      // output line by line, instead of in chunks.
+
       // Strip any ANSI style formatting from the current line of output and
       // then yield it.
       const line = `${stripAnsi(outputLine)}`
