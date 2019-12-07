@@ -504,7 +504,7 @@ class SteamCmd {
   // TODO: this could be made into a utility function
   async getPtyExitPromise (pty) {
     return new Promise(resolve => {
-      const disposeExitListener = pty.onExit(code => {
+      const { dispose: disposeExitListener } = pty.onExit(code => {
         resolve(code)
         disposeExitListener()
       })
@@ -518,11 +518,11 @@ class SteamCmd {
       currentResolve = resolve
     })
 
-    const disposeDataListener = pty.onData(data => {
+    const { dispose: disposeDataListener } = pty.onData(data => {
       currentResolve(data)
     })
 
-    const disposeExitListener = pty.onExit(() => {
+    const { dispose: disposeExitListener } = pty.onExit(() => {
       ptyClosed = true
       disposeExitListener()
       disposeDataListener()
