@@ -473,13 +473,8 @@ class SteamCmd {
 
     // Convert the chunks to lines and then iterate over them.
     for await (const outputLine of getPtyDataIterator(steamCmdPty)) {
-      // Strip any ANSI style formatting from the current line of output and
-      // then yield it.
-      const line = `${stripAnsi(outputLine.replace(/\r\n/g, '\n'))}`
-
-      if (this.enableDebugLogging) console.log(line)
-
-      yield line
+      if (this.enableDebugLogging) console.log(outputLine)
+      yield outputLine
     }
 
     // Once the output has been iterated over then wait for the process to exit
