@@ -504,33 +504,54 @@ class SteamCmd {
   // TODO: this could be made into a utility function
   async getPtyExitPromise (pty) {
     return new Promise(resolve => {
-      const { dispose: disposeExitListener } = pty.onExit(code => {
-        resolve(code)
+      const { dispose: disposeExitListener } = pty.onExit(event => {
+        resolve(event.exitCode)
         disposeExitListener()
       })
     })
   }
 
-  async * getPtyData (pty) {
-    let ptyClosed = false
-    let currentResolve
-    const getPromise = () => new Promise((resolve) => {
-      currentResolve = resolve
+  getPtyData (pty) {
+    const asyncQueue = {}
+    asyncQueue._queue = []
+    asyncQueue._waiting = new Promise(resolve => {
+      asyncQueue._resolveWaiting = resolve
     })
+    asyncQueue.dequeue = async () => {
+      await asyncQueue._waiting
+      const item = asyncQueue._queue.pop()
+
+      if (asyncQueue._queue.length <= 0) {
+        asyncQueue._waiting = new Promise(resolve => {
+          asyncQueue._resolveWaiting = resolve
+        })
+      }
+
+      return item
+    }
+    asyncQueue.enqueue = (item) => {
+      asyncQueue._queue.unshift(item)
+      asyncQueue._resolveWaiting()
+    }
 
     const { dispose: disposeDataListener } = pty.onData(data => {
-      currentResolve(data)
+      asyncQueue.enqueue({ value: data, done: false })
     })
 
     const { dispose: disposeExitListener } = pty.onExit(() => {
-      ptyClosed = true
+      asyncQueue.enqueue({ done: true })
       disposeExitListener()
       disposeDataListener()
     })
 
-    // eslint-disable-next-line no-unmodified-loop-condition
-    while (!ptyClosed) {
-      yield await getPromise()
+    return {
+      [Symbol.asyncIterator] () {
+        return {
+          next () {
+            return asyncQueue.dequeue()
+          }
+        }
+      }
     }
   }
 
