@@ -7,7 +7,7 @@ const stripAnsi = require('strip-ansi')
 const yauzl = require('yauzl')
 const tar = require('tar')
 const fileType = require('file-type')
-const { Readable } = require('stream')
+const { AsyncQueue } = require('./AsyncQueue')
 
 // TODO: update Readme
 // TODO: This class is bloated. Create a utility file that this class can use.
@@ -27,16 +27,12 @@ class SteamCmd {
    */
   static EXIT_CODES = {
     /**
-     * Indicates that the SteamCMD process was forcefully killed.
-     * @type {null}
-     */
-    PROCESS_KILLED: null,
-    /**
      * Indicates that SteamCMD exited normally.
      */
     NO_ERROR: 0,
     /**
-     * Indicates that some unknown error occurred.
+     * Indicates that Steam CMD had to quit due to some unknown error. This can
+     * also indicate that the process was forcefully terminated.
      */
     UNKNOWN_ERROR: 1,
     /**
@@ -473,13 +469,13 @@ class SteamCmd {
     this.#currentSteamCmdPty = steamCmdPty
 
     // Create a promise that will resolve once the Steam CMD process closed.
-    const exitPromise = this.getPtyExitPromise(steamCmdPty)
+    const exitPromise = this._getPtyExitPromise(steamCmdPty)
 
     // Convert the chunks to lines and then iterate over them.
-    for await (const outputLine of this.getPtyData(steamCmdPty)) {
+    for await (const outputLine of this._getPtyDataIterator(steamCmdPty)) {
       // Strip any ANSI style formatting from the current line of output and
       // then yield it.
-      const line = `${stripAnsi(outputLine)}`
+      const line = `${stripAnsi(outputLine.replace(/\r\n/g, '\n'))}`
 
       this.enableDebugLogging && console.log(line)
 
@@ -505,7 +501,7 @@ class SteamCmd {
   }
 
   // TODO: this could be made into a utility function
-  async getPtyExitPromise (pty) {
+  async _getPtyExitPromise (pty) {
     return new Promise(resolve => {
       const { dispose: disposeExitListener } = pty.onExit(event => {
         resolve(event.exitCode)
@@ -514,28 +510,8 @@ class SteamCmd {
     })
   }
 
-  getPtyData (pty) {
-    const asyncQueue = {}
-    asyncQueue._queue = []
-    asyncQueue._waiting = new Promise(resolve => {
-      asyncQueue._resolveWaiting = resolve
-    })
-    asyncQueue.dequeue = async () => {
-      await asyncQueue._waiting
-      const item = asyncQueue._queue.pop()
-
-      if (asyncQueue._queue.length <= 0) {
-        asyncQueue._waiting = new Promise(resolve => {
-          asyncQueue._resolveWaiting = resolve
-        })
-      }
-
-      return item
-    }
-    asyncQueue.enqueue = (item) => {
-      asyncQueue._queue.unshift(item)
-      asyncQueue._resolveWaiting()
-    }
+  _getPtyDataIterator (pty) {
+    const asyncQueue = new AsyncQueue()
 
     const { dispose: disposeDataListener } = pty.onData(data => {
       asyncQueue.enqueue({ value: data, done: false })
@@ -555,33 +531,6 @@ class SteamCmd {
           }
         }
       }
-    }
-  }
-
-  // TODO: this function can move to a utility file.
-  /**
-   * @param chunkIterable An asynchronous or synchronous iterable over "chunks"
-   * (arbitrary strings)
-   * @returns An asynchronous iterable over "lines" (strings with at most one
-   * newline that always appears at the end)
-   */
-  async * _chunksToLines (chunkIterable) {
-    let previous = ''
-    for await (const chunk of chunkIterable) {
-      // Windows uses CRLF. For consistency we replace it with a plain LF.
-      previous += chunk.replace(/\r\n/g, '\n')
-      while (true) {
-        const eolIndex = previous.indexOf('\n')
-        if (eolIndex < 0) break
-
-        const line = previous.slice(0, eolIndex + 1)
-        yield line
-        previous = previous.slice(eolIndex + 1)
-      }
-    }
-
-    if (previous.length > 0) {
-      yield previous
     }
   }
 
