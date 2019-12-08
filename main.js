@@ -510,7 +510,7 @@ class SteamCmd {
     })
   }
 
-  _getPtyDataIterator (pty) {
+  async * _getPtyDataIterator (pty) {
     const asyncQueue = new AsyncQueue()
 
     const { dispose: disposeDataListener } = pty.onData(data => {
@@ -523,7 +523,7 @@ class SteamCmd {
       disposeDataListener()
     })
 
-    return {
+    const iterator = {
       [Symbol.asyncIterator] () {
         return {
           next () {
@@ -531,6 +531,10 @@ class SteamCmd {
           }
         }
       }
+    }
+
+    for await (const line of iterator) {
+      yield line
     }
   }
 
