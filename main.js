@@ -443,6 +443,9 @@ class SteamCmd {
   }
 
   async * run (commands) {
+    // TODO: when the user terminates this process then also terminate the
+    // Steam CMD process
+
     // By default we want:
     // - Steam CMD to shutdown once it encountered an error
     // - Steam CMD should not prompt for a password, because stdin is not
@@ -622,6 +625,7 @@ class SteamCmd {
       commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
     }
 
+    // TODO: parse the output to report on the progress of the download
     yield * this.run(commands)
   }
 }
