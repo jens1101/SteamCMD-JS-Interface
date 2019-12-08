@@ -7,7 +7,7 @@ const stripAnsi = require('strip-ansi')
 const yauzl = require('yauzl')
 const tar = require('tar')
 const fileType = require('file-type')
-const { AsyncQueue } = require('./AsyncQueue')
+const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
 
 // TODO: update Readme
 // TODO: This class is bloated. Create a utility file that this class can use.
@@ -170,7 +170,7 @@ class SteamCmd {
    * Returns the currently running Steam CMD process. This can be used to
    * forcefully kill the process if something goes wrong. If no Steam CMD
    * process is running then this returns `null` instead.
-   * @returns {ChildProcess|null}
+   * @returns {IPty|null}
    */
   get currSteamCmdProcess () {
     return this.#currentSteamCmdPty
@@ -469,15 +469,15 @@ class SteamCmd {
     this.#currentSteamCmdPty = steamCmdPty
 
     // Create a promise that will resolve once the Steam CMD process closed.
-    const exitPromise = this._getPtyExitPromise(steamCmdPty)
+    const exitPromise = getPtyExitPromise(steamCmdPty)
 
     // Convert the chunks to lines and then iterate over them.
-    for await (const outputLine of this._getPtyDataIterator(steamCmdPty)) {
+    for await (const outputLine of getPtyDataIterator(steamCmdPty)) {
       // Strip any ANSI style formatting from the current line of output and
       // then yield it.
       const line = `${stripAnsi(outputLine.replace(/\r\n/g, '\n'))}`
 
-      this.enableDebugLogging && console.log(line)
+      if (this.enableDebugLogging) console.log(line)
 
       yield line
     }
@@ -497,44 +497,6 @@ class SteamCmd {
     if (exitCode > 0) {
       // TODO: create nicer error messages. Use the function that was deleted.
       throw new Error(`ERROR ${exitCode}`)
-    }
-  }
-
-  // TODO: this could be made into a utility function
-  async _getPtyExitPromise (pty) {
-    return new Promise(resolve => {
-      const { dispose: disposeExitListener } = pty.onExit(event => {
-        resolve(event.exitCode)
-        disposeExitListener()
-      })
-    })
-  }
-
-  async * _getPtyDataIterator (pty) {
-    const asyncQueue = new AsyncQueue()
-
-    const { dispose: disposeDataListener } = pty.onData(data => {
-      asyncQueue.enqueue({ value: data, done: false })
-    })
-
-    const { dispose: disposeExitListener } = pty.onExit(() => {
-      asyncQueue.enqueue({ done: true })
-      disposeExitListener()
-      disposeDataListener()
-    })
-
-    const iterator = {
-      [Symbol.asyncIterator] () {
-        return {
-          next () {
-            return asyncQueue.dequeue()
-          }
-        }
-      }
-    }
-
-    for await (const line of iterator) {
-      yield line
     }
   }
 
