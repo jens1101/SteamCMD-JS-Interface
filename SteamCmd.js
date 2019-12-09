@@ -3,10 +3,8 @@ const fs = require('fs')
 const tmp = require('tmp-promise')
 const axios = require('axios')
 const pty = require('node-pty')
-const yauzl = require('yauzl')
-const tar = require('tar')
-const fileType = require('file-type')
 const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
+const { extractFileFromArchive } = require('./lib/extractFileFromArchive')
 
 // TODO: update Readme
 // TODO: This class is bloated. Create a utility file that this class can use.
@@ -204,10 +202,12 @@ class SteamCmd {
    * will be installed to. Defaults to "install_dir" in the current directory.
    * @param {string} [options.username] The username to log into Steam.
    * Defaults to 'anonymous'.
+   * @param {boolean} [enableDebugLogging = false] Whether or not all output of
+   * Steam CMD will be logged to the console. This is useful for debugging.
    * @returns {Promise<SteamCmd>} Resolves into a ready-to-be-used SteamCmd
    * instance
    */
-  static async init (options) {
+  static async init (options, enableDebugLogging = false) {
     // Set the `initialising` variable to true to indicate to the constructor
     // that it's being legally called.
     SteamCmd.#initialising = true
@@ -222,8 +222,14 @@ class SteamCmd {
     const steamCmd = new SteamCmd(allOptions.binDir, allOptions.installDir,
       allOptions.username)
 
+    steamCmd.enableDebugLogging = enableDebugLogging
+
     // Download the Steam CMD executable
     await steamCmd.downloadSteamCmd()
+
+    // FIXME: this function call always returns an error code of 7. However
+    //  everything seems to have worked just fine. Maybe the error can be
+    //  ignored or avoided.
 
     // Test that the executable is in working condition
     // eslint-disable-next-line no-unused-vars
@@ -278,133 +284,32 @@ class SteamCmd {
   }
 
   /**
-   * Extracts the Steam CMD executable from the given file path.
-   * @param {string} path The path to the archive in which the Steam CMD
-   * executable resides.
-   * @returns {Promise<void>} Resolves once the executable has been extracted.
-   * @private
+   * Download the SteamCMD binaries if they are not installed in the current
+   * install directory. Does nothing if the binaries have already been
+   * downloaded.
+   * @returns {Promise<void>} Resolves once the binaries have been downloaded.
    */
-  async _extractArchive (path) {
-    const fileHandle = await fs.promises.open(path, 'r')
-
-    const { buffer } = await fileHandle.read(
-      Buffer.alloc(fileType.minimumBytes),
-      0,
-      fileType.minimumBytes,
-      0)
-
-    await fileHandle.close()
-
-    switch (fileType(buffer).mime) {
-      case 'application/gzip':
-        return this._extractTar(path)
-      case 'application/zip':
-        return this._extractZip(path)
-      default:
-        throw new Error('Archive format not recognised')
-    }
-  }
-
-  /**
-   * Extracts the Steam CMD executable from the zip file located at the
-   * specified path.
-   * @param {string} path The path to the zip file in which the Steam CMD
-   * executable is located.
-   * @returns {Promise<void>} Resolves once the Steam CMD executable has been
-   * successfully extracted.
-   * @throws {Error} When the executable couldn't be found in the archive.
-   * @private
-   */
-  async _extractZip (path) {
-    // Open the zip file
-    const zipFile = await new Promise((resolve, reject) => {
-      yauzl.open(path,
-        { lazyEntries: true },
-        (err, zipFile) => {
-          if (err) reject(err)
-          else resolve(zipFile)
-        })
-    })
-
-    // Find the entry for the Steam CMD executable
-    const executableEntry = await new Promise((resolve, reject) => {
-      zipFile.on('end', () => {
-        reject(new Error('Steam CMD executable not found in archive'))
-      })
-      zipFile.on('error', reject)
-      zipFile.on('entry', entry => {
-        if (entry.fileName === this.#exeName) {
-          resolve(entry)
-        } else {
-          zipFile.readEntry()
-        }
-      })
-
-      zipFile.readEntry()
-    })
-
-    // Extract the executable to its destination path
-    await new Promise((resolve, reject) => {
-      zipFile.openReadStream(executableEntry, (err, readStream) => {
-        if (err) throw err
-
-        const exeFileWriteStream = fs.createWriteStream(this.exePath)
-
-        readStream.pipe(exeFileWriteStream)
-        exeFileWriteStream.on('finish', resolve)
-        exeFileWriteStream.on('error', reject)
-      })
-    })
-
-    // Finally close the zip
-    zipFile.close()
-  }
-
-  /**
-   * Extracts the Steam CMD executable from the tar file located at the
-   * specified path. This tar file may be gzipped.
-   * @param {string} path The path to the tar file in which the Steam CMD
-   * executable is located.
-   * @returns {Promise<void>} Resolves once the Steam CMD executable has been
-   * successfully extracted.
-   * @throws {Error} When the executable couldn't be found in the archive.
-   * @private
-   */
-  async _extractTar (path) {
-    // Extract the tar file. By using the filter we only extract the Steam CMD
-    // executable.
-
-    // noinspection JSUnusedGlobalSymbols
-    await tar.extract({
-      cwd: this.#binDir,
-      strict: true,
-      file: path,
-      filter: (_, entry) => entry.path === this.#exeName
-    })
-
+  async downloadSteamCmd () {
+    // Try to access the Steam CMD file as an executable. If this doesn't throw
+    // an error then we know that is has already been downloaded and we can
+    // return.
     try {
-      // Test if the file is accessible and executable
       await fs.promises.access(this.exePath, fs.constants.X_OK)
-    } catch (ex) {
-      // If the Steam CMD executable wasn't extracted then it means that it was
-      // never in the archive to begin with. Throw an error.
-      throw new Error('Steam CMD executable not found in archive')
-    }
-  }
+      return
+    } catch {}
 
-  /**
-   * Downloads and unzips Steam CMD for the current platform into the `binDir`.
-   * If the executable already exists then nothing will be downloaded and this
-   * will simply resolve.
-   * @returns {Promise<void>} Resolves when the Steam CMD executable has been
-   * successfully downloaded and extracted. Rejects otherwise.
-   * @private
-   */
-  async _downloadSteamCmd () {
+    // If this part is reached then we need to download the executable.
+
+    // Create the bin directory if need be
+    await fs.promises.mkdir(this.#binDir, { recursive: true })
+
+    // Create a temp file into which the archive will be downloaded
     const tempFile = await tmp.file()
 
-    const responseStream = await axios.get(this.#downloadUrl,
-      { responseType: 'stream' })
+    // Download the archive and steam it into the temp file
+    const responseStream = await axios.get(this.#downloadUrl, {
+      responseType: 'stream'
+    })
 
     const tempFileWriteStream = fs.createWriteStream(tempFile.path)
 
@@ -413,33 +318,25 @@ class SteamCmd {
       tempFileWriteStream.on('finish', resolve)
     })
 
-    await this._extractArchive(tempFile.path)
+    // Extract the Steam CMD executable from the archive
+    await extractFileFromArchive(tempFile.path, this.#exeName, this.exePath)
 
     // Cleanup the temp file
     tempFile.cleanup()
-  }
 
-  /**
-   * Download the SteamCMD binaries if they are not installed in the current
-   * install directory.
-   * @returns {Promise<void>} Resolves once the binaries have been downloaded.
-   */
-  async downloadSteamCmd () {
     try {
-      // The file must be accessible and executable
+      // Test if the file is accessible and executable
       await fs.promises.access(this.exePath, fs.constants.X_OK)
     } catch (ex) {
-      // Create the directories if need be
-      await fs.promises.mkdir(this.#binDir, { recursive: true })
-
-      // If the exe couldn't be found then download it
-      return this._downloadSteamCmd()
+      // If the Steam CMD executable couldn't be accessed as an executable
+      // then throw an error.
+      throw new Error('Steam CMD executable not found in archive')
     }
   }
 
   async * run (commands) {
     // TODO: when the user terminates this process then also terminate the
-    // Steam CMD process
+    //  Steam CMD process
 
     // By default we want:
     // - Steam CMD to shutdown once it encountered an error
