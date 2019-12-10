@@ -14,7 +14,6 @@ const { extractArchive } = require('./lib/extractArchive')
  * account, update an app, etc.
  */
 class SteamCmd {
-  // TODO: I think we can delete this.
   /**
    * These are all exit codes that SteamCMD can use. This is not an exhaustive
    * list yet.
@@ -44,6 +43,11 @@ class SteamCmd {
      * Indicates that an incorrect password was provided.
      */
     INVALID_PASSWORD: 5,
+    /**
+     * Is only returned on the first run after the Steam CMD executable has
+     * been downloaded. It is unknown what this error code actually means.
+     */
+    INITIALIZED: 7,
     /**
      * Indicates that the application that you tried to update failed to
      * install. This can happen if you don't own it, if you don't have enough
@@ -226,10 +230,6 @@ class SteamCmd {
     // Download the Steam CMD executable
     await steamCmd.downloadSteamCmd()
 
-    // FIXME: this function call always returns an error code of 7. However
-    //  everything seems to have worked just fine. Maybe the error can be
-    //  ignored or avoided.
-
     // Test that the executable is in working condition
     // eslint-disable-next-line no-unused-vars
     for await (const line of steamCmd.run([])) {}
@@ -383,8 +383,9 @@ class SteamCmd {
     // Cleanup the temp file
     commandFile.cleanup()
 
-    // Throw an error if the exit code was non-zero.
-    if (exitCode > 0) {
+    // Throw an error if Steam CMD quit abnormally
+    if (exitCode !== SteamCmd.EXIT_CODES.NO_ERROR &&
+      exitCode !== SteamCmd.EXIT_CODES.INITIALIZED) {
       // TODO: create nicer error messages. Use the function that was deleted.
       throw new Error(`ERROR ${exitCode}`)
     }
