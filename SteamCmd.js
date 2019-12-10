@@ -4,7 +4,7 @@ const tmp = require('tmp-promise')
 const axios = require('axios')
 const pty = require('node-pty')
 const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
-const { extractFileFromArchive } = require('./lib/extractFileFromArchive')
+const { extractArchive } = require('./lib/extractArchive')
 
 // TODO: update Readme
 
@@ -153,10 +153,6 @@ class SteamCmd {
         this.#exeName = 'steamcmd.sh'
         break
       case 'linux':
-        // FIXME: This doesn't work because you can't only extract the single
-        //  executable file. You must extract the whole archive. I need to
-        //  adjust the code here to always extract the full contents of the
-        //  downloaded archive and run the executable.
         this.#downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'
         this.#exeName = 'steamcmd.sh'
@@ -322,7 +318,7 @@ class SteamCmd {
     })
 
     // Extract the Steam CMD executable from the archive
-    await extractFileFromArchive(tempFile.path, this.#exeName, this.exePath)
+    await extractArchive(tempFile.path, this.#binDir)
 
     // Cleanup the temp file
     tempFile.cleanup()
