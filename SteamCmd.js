@@ -7,7 +7,6 @@ const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
 const { extractFileFromArchive } = require('./lib/extractFileFromArchive')
 
 // TODO: update Readme
-// TODO: This class is bloated. Create a utility file that this class can use.
 
 /**
  * This class acts as an intermediate layer between SteamCMD and NodeJS. It
