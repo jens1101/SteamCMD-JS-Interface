@@ -154,12 +154,10 @@ class SteamCmd {
         this.#exeName = 'steamcmd.sh'
         break
       case 'linux':
-        // FIXME: this doesn't actually work. The linux setup is very
-        //  complicated
-        //  (https://developer.valvesoftware.com/wiki/SteamCMD#Manually). Maybe
-        //  Running the docker image would be better
-        //  (https://hub.docker.com/r/cm2network/steamcmd/). Or maybe I
-        //  shouldn't bother with downloading and setting up Steam CMD at all...
+        // FIXME: This doesn't work because you can't only extract the single
+        //  executable file. You must extract the whole archive. I need to
+        //  adjust the code here to always extract the full contents of the
+        //  downloaded archive and run the executable.
         this.#downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'
         this.#exeName = 'steamcmd.sh'
