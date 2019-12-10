@@ -154,6 +154,12 @@ class SteamCmd {
         this.#exeName = 'steamcmd.sh'
         break
       case 'linux':
+        // FIXME: this doesn't actually work. The linux setup is very
+        //  complicated
+        //  (https://developer.valvesoftware.com/wiki/SteamCMD#Manually). Maybe
+        //  Running the docker image would be better
+        //  (https://hub.docker.com/r/cm2network/steamcmd/). Or maybe I
+        //  shouldn't bother with downloading and setting up Steam CMD at all...
         this.#downloadUrl =
           'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'
         this.#exeName = 'steamcmd.sh'
