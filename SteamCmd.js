@@ -420,6 +420,9 @@ class SteamCmd {
     if (exitCode !== SteamCmd.EXIT_CODES.NO_ERROR &&
       exitCode !== SteamCmd.EXIT_CODES.INITIALIZED) {
       // TODO: create nicer error messages. Use the function that was deleted.
+      // TODO: somehow add the exit code into the error message so that users
+      //  can extract it from the message and conditionally react to it. Maybe
+      //  we can create a custom Error class.
       throw new Error(`ERROR ${exitCode}`)
     }
   }
