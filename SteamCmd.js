@@ -165,6 +165,11 @@ class SteamCmd {
       default:
         throw new Error(`Platform "${process.platform}" is not supported`)
     }
+
+    // Kill the current pseudo terminal if this process is being terminated
+    process.once('exit', () => {
+      if (this.#currentSteamCmdPty) this.#currentSteamCmdPty.kill()
+    })
   }
 
   /**
@@ -335,9 +340,6 @@ class SteamCmd {
   }
 
   async * run (commands) {
-    // TODO: when the user terminates this process then also terminate the
-    //  Steam CMD process
-
     // By default we want:
     // - Steam CMD to shutdown once it encountered an error
     // - Steam CMD should not prompt for a password, because stdin is not
