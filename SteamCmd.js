@@ -44,8 +44,9 @@ class SteamCmd {
      */
     INVALID_PASSWORD: 5,
     /**
-     * Is only returned on the first run after the Steam CMD executable has
-     * been downloaded. It is unknown what this error code actually means.
+     * On Windows this is returned only on the first run after the Steam CMD
+     * executable has been downloaded. It is unknown what this error code
+     * actually means.
      */
     INITIALIZED: 7,
     /**
