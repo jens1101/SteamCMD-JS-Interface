@@ -339,6 +339,36 @@ class SteamCmd {
     }
   }
 
+  /**
+   * This generator runs the array of commands that you pass to it. It creates
+   * a temporary file, writes the commands to it, and the runs it as a script
+   * via the Steam CMD executable. It asynchronously yields each line of output
+   * from the executable. Note that this will not actually run until the first
+   * value has been requested. Therefore this will mostly be run within a
+   * `for await of` loop.
+   *
+   * A list of all Steam CMD commands can be found here:
+   * https://github.com/dgibbs64/SteamCMD-Commands-List/blob/master/steamcmd_commands.txt
+   *
+   * The following commands will be prepended to the given array of commands:
+   * "@ShutdownOnFailedCommand 1" and "@NoPromptForPassword 1". This ensures
+   * that the executable will quit the moment it encounters an error and that
+   * it will not prompt for a password on login (since that could suspend the
+   * process indefinitely). These commands can be overwritten by adding them to
+   * the `commands` parameter.
+   *
+   * The "quit" command will always be appended to the given array of commands.
+   * This ensures that Steam CMD will always quit once the script file has been
+   * run successfully. This ensures that the process will not hang once the
+   * script has been executed and it **cannot** be overwritten.
+   * @param {string[]} commands An array of commands that must be executed via
+   * Steam CMD
+   * @returns {AsyncIterableIterator<string>} Returns an async iterator that
+   * yields each line of output from the Steam CMD executable until it
+   * terminates.
+   * @throws {Error} Throws an error if the Steam CMD executable quit with a
+   * non-zero exit code.
+   */
   async * run (commands) {
     // By default we want:
     // - Steam CMD to shutdown once it encountered an error
