@@ -335,9 +335,8 @@ class SteamCmd {
    * script has been executed and it **cannot** be overwritten.
    * @param {string[]} commands An array of commands that must be executed via
    * Steam CMD
-   * @returns {AsyncIterableIterator<string>} Returns an async iterator that
-   * yields each line of output from the Steam CMD executable until it
-   * terminates.
+   * @yields {string} Each line of output from the Steam CMD executable until
+   * it terminates.
    * @throws {Error} Throws an error if the Steam CMD executable quit with a
    * non-zero exit code.
    */

@@ -15,7 +15,7 @@ module.exports = {
  * `\n`, all `\r` will be stripped, all ANSI escape characters will be
  * stripped, and all white spaces at the start and end of each output line will
  * be trimmed.
- * @returns {AsyncIterableIterator<string>}
+ * @yields {string} The line of output from the pseudo terminal
  */
 async function * getPtyDataIterator (pty, raw = false) {
   /**
