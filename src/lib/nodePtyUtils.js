@@ -12,8 +12,9 @@ module.exports = {
  * @param {IPty} pty The pseudo terminal instance
  * @param {boolean} [raw=false] If true then the output of the Steam CMD
  * process is returned as is. If false then line endings will be normalised to
- * `\n`, all `\r` will be stripped, and all ANSI escape characters will be
- * stripped.
+ * `\n`, all `\r` will be stripped, all ANSI escape characters will be
+ * stripped, and all white spaces at the start and end of each output line will
+ * be trimmed.
  * @returns {AsyncIterableIterator<string>}
  */
 async function * getPtyDataIterator (pty, raw = false) {
@@ -34,6 +35,7 @@ async function * getPtyDataIterator (pty, raw = false) {
     const normalisedLine = outputLine
       .replace(/\r\n/g, '\n')
       .replace(/\r/, '')
+      .trim()
 
     const line = `${stripAnsi(normalisedLine)}`
     asyncQueue.enqueue(line)

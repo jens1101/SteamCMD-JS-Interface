@@ -416,8 +416,26 @@ class SteamCmd {
       commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
     }
 
-    // TODO: parse the output to report on the progress of the download
-    yield * this.run(commands)
+    const progressRegex =
+      /Update state \((0x\d+)\) (\w+), progress: (\d+.\d+) \((\d+) \/ (\d+)\)$/
+
+    for await (const line of this.run(commands)) {
+      const result = progressRegex.exec(line)
+
+      if (result == null) continue
+
+      const [
+        stateCode, state, progressPercent, progressAmount,
+        progressTotalAmount] = result.slice(1)
+
+      yield {
+        stateCode,
+        state,
+        progressPercent: parseFloat(progressPercent),
+        progressAmount: parseInt(progressAmount),
+        progressTotalAmount: parseInt(progressTotalAmount)
+      }
+    }
   }
 }
 
