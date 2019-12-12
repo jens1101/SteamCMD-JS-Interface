@@ -174,8 +174,6 @@ class SteamCmd {
     // that it's being legally called.
     SteamCmd.#initialising = true
 
-    // TODO: maybe the install directory should default to the current working
-    //  directory.
     const allOptions = Object.assign({
       binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
       installDir: path.join(process.cwd(), 'install_dir'),
