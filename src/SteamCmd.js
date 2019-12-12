@@ -5,6 +5,7 @@ const axios = require('axios')
 const pty = require('node-pty')
 const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
 const { extractArchive } = require('./lib/extractArchive')
+const { SteamCmdError } = require('./SteamCmdError')
 
 // TODO: update Readme
 
@@ -14,54 +15,6 @@ const { extractArchive } = require('./lib/extractArchive')
  * account, update an app, etc.
  */
 class SteamCmd {
-  /**
-   * These are all exit codes that SteamCMD can use. This is not an exhaustive
-   * list yet.
-   * @readonly
-   * @enum {number}
-   */
-  static EXIT_CODES = {
-    /**
-     * Indicates that SteamCMD exited normally.
-     */
-    NO_ERROR: 0,
-    /**
-     * Indicates that Steam CMD had to quit due to some unknown error. This can
-     * also indicate that the process was forcefully terminated.
-     */
-    UNKNOWN_ERROR: 1,
-    /**
-     * Indicates that the user attempted to login while another user was already
-     * logged in.
-     */
-    ALREADY_LOGGED_IN: 2,
-    /**
-     * Indicates that SteamCMD has no connection to the internet.
-     */
-    NO_CONNECTION: 3,
-    /**
-     * Indicates that an incorrect password was provided.
-     */
-    INVALID_PASSWORD: 5,
-    /**
-     * On Windows this is returned only on the first run after the Steam CMD
-     * executable has been downloaded. It is unknown what this error code
-     * actually means.
-     */
-    INITIALIZED: 7,
-    /**
-     * Indicates that the application that you tried to update failed to
-     * install. This can happen if you don't own it, if you don't have enough
-     * hard drive space, or if a network error occurred.
-     */
-    FAILED_TO_INSTALL: 8,
-    /**
-     * Indicated that a Steam guard code is required before the login can
-     * finish.
-     */
-    STEAM_GUARD_CODE_REQUIRED: 63
-  }
-
   /**
    * Used to indicate to the constructor that it's being legally called.
    * `SteamCmd.init` sets this to true and then calls the constructor. If this
@@ -419,13 +372,9 @@ class SteamCmd {
     commandFile.cleanup()
 
     // Throw an error if Steam CMD quit abnormally
-    if (exitCode !== SteamCmd.EXIT_CODES.NO_ERROR &&
-      exitCode !== SteamCmd.EXIT_CODES.INITIALIZED) {
-      // TODO: create nicer error messages. Use the function that was deleted.
-      // TODO: somehow add the exit code into the error message so that users
-      //  can extract it from the message and conditionally react to it. Maybe
-      //  we can create a custom Error class.
-      throw new Error(`ERROR ${exitCode}`)
+    if (exitCode !== SteamCmdError.EXIT_CODES.NO_ERROR &&
+      exitCode !== SteamCmdError.EXIT_CODES.INITIALIZED) {
+      throw new SteamCmdError(exitCode)
     }
   }
 
