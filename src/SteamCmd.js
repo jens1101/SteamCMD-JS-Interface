@@ -10,6 +10,25 @@ const { SteamCmdError } = require('./SteamCmdError')
 // TODO: update Readme
 
 /**
+ * A progress update on an app update. This typically reports how much of an
+ * app has been downloaded so far, however this isn't it's only use case. An
+ * app update consists of multiple stages, including: pre-allocating space,
+ * downloading, verification, etc.
+ * @typedef {Object} SteamCmd~UpdateProgress
+ * @property {string} stateCode The current state's code. This seems to be used
+ * internally as a sort of unique ID.
+ * @property {string} state The human-readable version of the current state.
+ * @property {number} progressPercent The percentage of how much of the current
+ * state has been completed.
+ * @property {number} progressAmount The actual amount of work that has been
+ * completed for the current state. This is used to calculate the progress
+ * percentage. What unit this is in depends on the current state.
+ * @property {number} progressTotalAmount The total amount of work that must be
+ * completed for the current state. This is used to calculate the progress
+ * percentage. What unit this is in depends on the current state.
+ */
+
+/**
  * This class acts as an intermediate layer between SteamCMD and NodeJS. It
  * allows you to download the SteamCMD binaries, login with a custom user
  * account, update an app, etc.
@@ -387,6 +406,8 @@ class SteamCmd {
    * @param {number} [platformBitness] Indicates the bitness of the platform.
    * Can be either 32 or 64. If omitted then this will use the current
    * platform's bitness.
+   * @yields {SteamCmd~UpdateProgress} Progress updates while the app is being
+   * updated.
    */
   async * updateApp (appId, platformType, platformBitness) {
     if (!path.isAbsolute(this.#installDir)) {
@@ -416,18 +437,29 @@ class SteamCmd {
       commands.unshift('@sSteamCmdForcePlatformType ' + platformType)
     }
 
+    /**
+     * This regular expression tests each line of output from Steam CMD. It
+     * will match dequeuedd the patten that is emitted when the current app is
+     * being downloaded.
+     * @type {RegExp}
+     */
     const progressRegex =
       /Update state \((0x\d+)\) (\w+), progress: (\d+.\d+) \((\d+) \/ (\d+)\)$/
 
     for await (const line of this.run(commands)) {
+      // Test the current line of output
       const result = progressRegex.exec(line)
 
+      // If the current line doesn't match the Regex pattern then it's skipped.
       if (result == null) continue
 
+      // If the pattern matched then we assign each one of the capture groups to
+      // a variable
       const [
         stateCode, state, progressPercent, progressAmount,
         progressTotalAmount] = result.slice(1)
 
+      // Return the variables as an object.
       yield {
         stateCode,
         state,
