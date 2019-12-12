@@ -1,4 +1,3 @@
 /node_modules
-/src/steamcmd_bin
-/install_dir
+/temp
 .idea/workspace.xml

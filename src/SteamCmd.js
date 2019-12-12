@@ -194,8 +194,8 @@ class SteamCmd {
     SteamCmd.#initialising = true
 
     const allOptions = Object.assign({
-      binDir: path.join(__dirname, 'steamcmd_bin', process.platform),
-      installDir: path.join(process.cwd(), 'install_dir'),
+      binDir: path.join(__dirname, '../temp', 'steamcmd_bin', process.platform),
+      installDir: path.join(__dirname, '../temp', 'install_dir'),
       username: 'anonymous'
     }, options)
 
