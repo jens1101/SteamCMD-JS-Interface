@@ -7,8 +7,6 @@ const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
 const { extractArchive } = require('./lib/extractArchive')
 const { SteamCmdError } = require('./SteamCmdError')
 
-// TODO: update Readme
-
 /**
  * A progress update on an app update. This typically reports how much of an
  * app has been downloaded so far, however this isn't it's only use case. An
