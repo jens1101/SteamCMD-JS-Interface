@@ -231,14 +231,18 @@ class SteamCmd {
    * @throws An error if the login failed in any way.
    */
   async login (username, password, steamGuardCode) {
-    this.#username = username
+    // Build the login command from the given credentials
+    const loginCommand = ['login', `"${username}"`]
+    if (password) loginCommand.push(`"${password}"`)
+    if (steamGuardCode) loginCommand.push(`"${steamGuardCode}"`)
 
-    const login = ['login', `"${this.#username}"`]
-    if (password) login.push(`"${password}"`)
-    if (steamGuardCode) login.push(`"${steamGuardCode}"`)
-
+    // Run the login command. This will throw an error if the login was
+    // unsuccessful.
     // eslint-disable-next-line no-unused-vars
-    for await (const line of this.run([login.join(' ')])) {}
+    for await (const line of this.run([loginCommand.join(' ')])) {}
+
+    // If the login succeeded then updated the currently saved username.
+    this.#username = username
   }
 
   /**
