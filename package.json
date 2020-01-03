@@ -15,7 +15,7 @@
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
   },
   "engines": {
-    "node": ">=10.9"
+    "node": ">=12.11"
   },
   "scripts": {},
   "dependencies": {
