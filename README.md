@@ -2,7 +2,7 @@
 This library allows you to access
 [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) via JavaScript.
 
-This is compatible with Node > v10 on Windows, Linux, or Mac.
+This is compatible with Node > v12 on Windows, Linux, or Mac.
 
 ## Basic Usage Example
 1. Install the package
