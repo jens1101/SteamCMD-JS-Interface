@@ -97,6 +97,8 @@ class SteamCmd {
    * installed to.
    * @param {string} username The username to log into Steam.
    * @see SteamCmd.init
+   * @throws {Error} Throws an error if called directly
+   * @throws {Error} Throws an error if the specified platform is not supported
    */
   constructor (binDir, installDir, username) {
     // If the `initialising` variable is not set then throw an error. Direct
@@ -228,7 +230,7 @@ class SteamCmd {
    * account doesn't have Steam Guard enabled.
    * @returns {Promise<void>} Resolves once the user has been successfully
    * logged in.
-   * @throws An error if the login failed in any way.
+   * @throws {SteamCmdError} An error if the login failed in any way.
    */
   async login (username, password, steamGuardCode) {
     // Build the login command from the given credentials
@@ -267,6 +269,8 @@ class SteamCmd {
    * install directory. Does nothing if the binaries have already been
    * downloaded.
    * @returns {Promise<void>} Resolves once the binaries have been downloaded.
+   * @throws {Error} Throws an error if the SteamCMD executable was not found
+   * in the bin directory.
    */
   async downloadSteamCmd () {
     // Try to access the Steam CMD file as an executable. If this doesn't throw
@@ -339,8 +343,8 @@ class SteamCmd {
    * Steam CMD
    * @yields {string} Each line of output from the Steam CMD executable until
    * it terminates.
-   * @throws {Error} Throws an error if the Steam CMD executable quit with a
-   * non-zero exit code.
+   * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
+   * with a non-zero exit code.
    */
   async * run (commands) {
     // By default we want:
@@ -409,6 +413,11 @@ class SteamCmd {
    * platform's bitness.
    * @yields {SteamCmd~UpdateProgress} Progress updates while the app is being
    * updated.
+   * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
+   * with a non-zero exit code.
+   * @throws {TypeError} Throws an error if the install directory is a relative
+   * path. It must be absolute, because SteamCMD doesn't support relative
+   * install directories.
    */
   async * updateApp (appId, platformType, platformBitness) {
     if (!path.isAbsolute(this.#installDir)) {

@@ -169,6 +169,44 @@ for await(const line of steamCmd.run(commands)) {
 }
 ```
 
+## Error Handling
+Some function can throw a `SteamCmdError` error (most notably the `run` and
+`updateApp` generators). This error object's `message` property is generated
+based on the exit code that the SteamCMD binary returned. In addition the
+original exit code can be retrieved via the `exitCode` property.
+
+The class also has a few useful statics, such as the `EXIT_CODES` object, and
+the `getErrorMessage` function.
+
+### Example
+```js
+const steamCmd = await SteamCmd.init()
+
+// Try to download Half-Life 2
+try {
+    for await(const progress of steamCmd.updateApp(220)) {
+      console.log(progress)
+    }
+} catch (error) {
+  // Logs "The application failed to install for some reason. Reasons include: 
+  // you do not own the application, you do not have enough hard drive space,
+  // or a network error occurred." This is because we logged in anonymously
+  // above and are therefore not allowed to download Half-Life 2.
+  console.log(error.message)
+
+  // Logs "8"
+  console.log(error.exitCode)
+
+  // Logs "The application failed to install for some reason. Reasons include: 
+  // you do not own the application, you do not have enough hard drive space,
+  // or a network error occurred."
+  console.log(SteamCmdError.getErrorMessage(error.exitCode))
+
+  // Logs all the currently known exit codes.
+  console.log(SteamCmdError.EXIT_CODES)
+}
+```
+
 ## Debugging
 You can enable debug logging where SteamCmd will log each line of output to the
 console. There are two ways you can enable debug logging:
