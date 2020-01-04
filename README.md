@@ -1,172 +1,232 @@
-# SteamCMD JS Interface
-Allows you to access and use SteamCMD via JavaScript
+# SteamCMD JavaScript Interface
+This library allows you to access
+[SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) via JavaScript.
 
-**Note** this uses ES2017 features, such as async. Please use Node >= 8.3. I
-have plans of adding compiled and uglified versions sometime in the future.
+This is compatible with Node > v12 on Windows, Linux, or Mac.
 
-## Basic Usage
+## Basic Usage Example
 1. Install the package
+   ```sh
+   npm install steamcmd-interface
+   ```
+
+2. Import the class and create a new instance using the `init` function. This
+   is an _asynchronous_ function that downloads all the binaries, creates a new 
+   instance of SteamCmd, ensures that it can run, and then returns the instance
+   ```js
+   const { SteamCmd } = require('steamcmd-interface')
+   const steamCmd = await SteamCmd.init()
+   ```
+
+3. Now you can use the instance to interact with SteamCMD. You can login with
+   your user account or anonymously (default), update apps, or run a series of
+   commands.
+
+   The `updateApp` function is an async generator that reports on the progress
+   of the update as it gets output from the underling SteamCMD process.
+   ```js
+   // Downloads CS:GO dedicated server to the default install directory.
+   for await(const progress of steamCmd.updateApp(740)) {
+     // Logs something like "downloading 1.2%"
+     console.log(`${progress.state} ${progress.progressPercent}%`)
+   }
+   ```
+
+## Construction
+A new `SteamCmd` object **cannot** be created using the `new` keyword. It will
+throw an error. You must use the `SteamCmd.init` async function. This is because
+construction is fundamentally asynchronous.
+
+### Options
+An options object can be passed to the `SteamCmd.init` function to configure
+the behaviour of the instance. The following options are available:
+- `binDir`: The path to which the SteamCMD binaries will be downloaded to.
+  Defaults to "[the module's base directory]/temp/install_dir/[platform string]"
+- `installDir`: To where SteamCMD will download all applications. Defaults to
+  "[the module's base directory]/temp/install_dir"
+- `username`: The user name to log in as. Defaults to "anonymous"
+
+### Examples
+- Changing the install directory to install apps to the current working
+  directory.
+  ```js
+  SteamCmd.init({
+    installDir: process.cwd()
+  })
+  ```
+- Setting a user name for downloading purchased games.
+  
+  **Note** that this will only work if you successfully logged in once and
+  SteamCMD has your credentials cached. See the ["Logging In"](#logging-in) 
+  section below for more details.
+  ```js
+  SteamCmd.init({
+    username: 'example'
+  })
+  ```
+
+## Logging In
+SteamCmd offers two login-related functions:
+- `isLoggedIn` simply tests if the currently saved username is logged in with
+  SteamCMD. If this returns true then SteamCMD has access to your library and
+  you can run actions related you your library; such as downloading games.
+- `login` uses the given username, password, and Steam Guard code to login.
+  This will resolve if the login was successful or throw an error if the login
+  failed.
+
+### Examples
+1. By default on initialisation SteamCmd logs in anonymously, therefore the
+   login test returns true.
+   ```js
+   const steamCmd = await SteamCmd.init()
+   console.log(await steamCmd.isLoggedIn()) // Logs "true"
+   ```
+2. If we initialise with a username that we have never logged in as then the
+   login test returns false.
+   ```js
+   const steamCmd = await SteamCmd.init({
+     username: 'example'
+   })
+   console.log(await steamCmd.isLoggedIn()) // Logs "false"
+   ```
+3. Logging in with correct credentials.
+   ```js
+   const steamCmd = await SteamCmd.init({
+     // Specifying the username here is not strictly necessary, because the
+     // call to "login" below will update the internally saved username. 
+     username: 'example'
+   })
+   await steamCmd.login('example', 'password123', 'AABB2')
+   console.log(await steamCmd.isLoggedIn()) // Logs "true"
+   ```
+4. If we initialise with a username that we have previously logged in with then
+   SteamCMD will use the cached credentials to log us in. Therefore we don't
+   need to call the "login" function.
+   ```js
+   const steamCmd = await SteamCmd.init({
+     username: 'example'
+   })
+   console.log(await steamCmd.isLoggedIn()) // Logs "true"
+   ```
+
+## Updating Apps (i.e. Downloading Games)
+You can download games into the install directory by using the `updateApp`
+function. It's an asynchronous generator function that yields an object that
+reports on the current progress of the update. If you are logged in then you
+will have access to your Steam library.
+
+You have to give `updateApp` the app ID of the game that you want to download.
+You can search for your game to get the app ID on
+[Steam DB](https://steamdb.info/search/?a=app).
+
+This function also optionally accepts the platform type and bitness of the
+application. This will allow you to download, for example, Windows games on a
+Mac. If omitted then the platform and bitness of the current operating system
+are used. 
+
+### Example
+```js
+const steamCmd = await SteamCmd.init()
+
+// Downloads Windows 32bit CS:GO dedicated server to the default install
+// directory.
+for await(const progress of steamCmd.updateApp(740, 'windows', 32)) {
+  // Logs something like
+  // {
+  //   stateCode: '0x61',
+  //   state: 'downloading',
+  //   progressPercent: 0.65,
+  //   progressAmount: 156521223,
+  //   progressTotalAmount: 24015919696
+  // }
+  console.log(progress)
+}
+
+// Once the loop above has completed then the app has been successfully
+// downloaded
 ```
-npm install steamcmd-interface
-```
-2. Import the class and create a new instance
-```javascript
-const SteamCmd = require('steamcmd-interface')
-const steamcmd = new SteamCmd()
-```
-3. Now you can use the instance to interact with SteamCMD. Like anonymously
-downloading the CS:GO dedicated server
-```javascript
-// Downloads SteamCMD for the current platform and makes sure that it is usable.
-await steamcmd.prep()
-// Downloads CS:GO dedicated server to the default install directory.
-const runObj = steamcmd.updateApp(740)
-```
 
-## Changing the Binary and Install Directories
-By default the SteamCMD binaries are downloaded to
-`path.join(__dirname, 'steamcmd_bin', process.platform)`. So, for example, this
-would equal to: `[Project dir]/node_modules/steamcmd-interface/steamcmd_bin/linux`
-on a linux machine.
+## Running Arbitrary commands
+You can run a series of commands using the `run` function. It accepts an array
+of strings. Each sting must be a command that can be run by SteamCMD. An
+exhaustive list of all available commands is available in
+[this repository](https://github.com/dgibbs64/SteamCMD-Commands-List/blob/master/steamcmd_commands.txt).
 
-Similarly the install directory is set to `path.join(__dirname, 'install_dir')`
-by default.
+This function is an asynchronous generator function. It yields each line of
+output from SteamCMD. It will throw an error if an error occurred.
 
-It is recommended that you change these defaults, because downloading stuff into
-`node_modules` is bad practice. Also, I suspect that these directories may get
-deleted when you upgrade or uninstall this package.
+### Example
+```js
+const steamCmd = await SteamCmd.init()
 
-You can change these directories by running:
-```javascript
-// On construction
-const steamcmd = new SteamCmd({
-  binDir: `~/Downloads/steamcmd/bin`,
-  installDir: `~/Downloads/steamcmd/apps`
-})
-// Or later on via a function call:
-steamcmd.setOptions({
-  binDir: `~/Downloads/steamcmd/bin`,
-  installDir: `~/Downloads/steamcmd/apps`
-})
-```
-**Pro Tip**: If you have the Steam client installed then you can set the install
-directory to the [library directory](https://support.steampowered.com/kb_article.php?ref=7418-YUBN-8129)
-of the client. This will cause Steam to recognise the app and you won't need to
-move files manually.
-
-## Downloading and Updating Apps
-You can download or update a steam app by running `updateApp(appId)`. For example:
-```javascript
-const runObj = steamcmd.updateApp(740)
-```
-The above will download the CS:GO dedicated server to the default install
-directory.
-
-The `updateApp` function returns a `RunObj` object. This contains two properties
-`outputStream` and `killSteamCmd`.
-
-`outputStream` is a readable stream that returns the output of SteamCMD line by
-line. So if you want to log the output then you can do something like:
-```javascript
-runObj.outputStream.on('data', data => { console.log(data) })
-runObj.outputStream.on('error', err => { console.error(err) })
-runObj.outputStream.on('close', exitCode => { console.log(exitCode) })
-```
-Practically this can be used for things like tracking the download progress of
-an app.
-
-`killSteamCmd` is a function that, once called, will kill the SteamCMD process.
-This is currently the only way to stop a download. Don't worry, when you try to
-update the same app again then it will start the download there where it left
-off.
-
-## Setting Your Login Credentials
-By default this package uses the anonymous account to login to Steam. You can
-change this by running:
-```javascript
-// On construction
-const steamcmd = new SteamCmd({
-  username: 'test',
-  password: '1234',
-  steamGuardCode: 'XG29X'
-})
-// Or later via a funtion call
-steamcmd.setOptions({
-  username: 'test',
-  password: '1234',
-  steamGuardCode: 'XG29X'
-})
-```
-If you do this then you have access to your entire Steam library.
-
-**Note 1** Your Steam Guard code will only get sent to you once you tried to login
-via your username and password. So you'll need to do something like this on the
-first login to SteamCMD:
-```javascript
-const steamcmd = new SteamCmd({
-  username: 'test',
-  password: '1234'
-})
-await steamcmd.prep()
-const runObj = steamcmd.updateApp(740)
-runObj.outputStream.on('close', exitCode => {
-  if(errorCode === SteamCmd.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED) {
-    // At this point SteamCMD ran and failed, because the Steam Guard code was
-    // not set. So here you somehow need to provide it with the correct code and
-    // it should work.
-    steamcmd.setOptions({
-      steamGuardCode: '[The code that was sent to you by Steam]'
-    })
-    // This works now!
-    steamcmd.updateApp(740)
-  }
-})
-```
-
-**Note 2** After you have successfully logged in then SteamCMD stores your
-credentials internally. So you don't need to specify a Steam Guard code each time.
-
-## Getting an Error Message For an Exit Code
-Sometimes you may want to get a human-readable error message for a particular
-exit code. In this case simply use `SteamCmd.getErrorMessage`. For example:
-```javascript
-const runObj = steamcmd.updateApp(740)
-runObj.outputStream.on('close', exitCode => {
-  if(errorCode !== SteamCmd.EXIT_CODES.NO_ERROR) {
-    // Something went wrong, throw an error
-    throw new Error(SteamCmd.getErrorMessage(exitCode))
-  }
-})
-```
-
-## Running Custom Commands
-It is possible to run your own custom commands using the `run` function. It
-expects an array of commands that it will run one after the next. It will quit
-the moment an error occurs. For example:
-```javascript
-const commands = const commands = [
-  steamcmd.getLoginStr(),
-  `force_install_dir "${steamcmd.installDir}"`,
+// Uninstall the CS:GO dedicated server
+const commands = [
   'app_uninstall -complete 740'
 ]
-const runObj = steamcmd.run(commands)
+
+for await(const line of steamCmd.run(commands)) {
+  console.log(line)
+}
 ```
-The above will login using the current credentials, set the install directory
-and completely uninstall CS:GO dedicated server.
 
-For a list of all possible commands see
-[this wiki entry](https://developer.valvesoftware.com/wiki/Command_Line_Options#SteamCMD)
-or [this github repo](https://github.com/dgibbs64/SteamCMD-Commands-List/)
+## Error Handling
+Some function can throw a `SteamCmdError` error (most notably the `run` and
+`updateApp` generators). This error object's `message` property is generated
+based on the exit code that the SteamCMD binary returned. In addition the
+original exit code can be retrieved via the `exitCode` property.
 
-**Note** The run command automatically adds `@ShutdownOnFailedCommand 1` and
-`@NoPromptForPassword 1` the the beginning of your list of commands. This is to
-prevent the SteamCMD process from hanging. If you want to over-write this then
-just add `@ShutdownOnFailedCommand 0` and/or `@NoPromptForPassword 0` to the
-beginning of your list of commands.
+The class also has a few useful statics, such as the `EXIT_CODES` object, and
+the `getErrorMessage` function.
 
-## TODO
-- Add better documentation with jsdoc
-- Add automation tasks with something like gulp
-- Add more tests
-- Add compiled versions that support lesser versions of JS.
-- Uglify the final code.
+### Example
+```js
+const steamCmd = await SteamCmd.init()
+
+// Try to download Half-Life 2
+try {
+    for await(const progress of steamCmd.updateApp(220)) {
+      console.log(progress)
+    }
+} catch (error) {
+  // Logs "The application failed to install for some reason. Reasons include: 
+  // you do not own the application, you do not have enough hard drive space,
+  // or a network error occurred." This is because we logged in anonymously
+  // above and are therefore not allowed to download Half-Life 2.
+  console.log(error.message)
+
+  // Logs "8"
+  console.log(error.exitCode)
+
+  // Logs "The application failed to install for some reason. Reasons include: 
+  // you do not own the application, you do not have enough hard drive space,
+  // or a network error occurred."
+  console.log(SteamCmdError.getErrorMessage(error.exitCode))
+
+  // Logs all the currently known exit codes.
+  console.log(SteamCmdError.EXIT_CODES)
+}
+```
+
+## Debugging
+You can enable debug logging where SteamCmd will log each line of output to the
+console. There are two ways you can enable debug logging:
+- By passing a parameter to the `init` function
+  ```js
+  // The second parameter enables or disables debug logging. By default it's
+  // disabled
+  SteamCmd.init({}, true)
+  ```
+- By setting a class variable to true. This is useful for enabling or disabling
+  debug logging after initialisation
+  ```js
+  const steamCmd = await SteamCmd.init()
+
+  // ... Later ...
+
+  steamCmd.enableDebugLogging = true
+  ```
+
+## Resources
+- [SteamCMD home page](https://developer.valvesoftware.com/wiki/SteamCMD)
+- [All SteamCMD commands](https://github.com/dgibbs64/SteamCMD-Commands-List)
+- [Steam DB app search](https://steamdb.info/search/?a=app)

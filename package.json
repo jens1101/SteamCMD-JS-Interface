@@ -1,6 +1,6 @@
 {
   "name": "steamcmd-interface",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "keywords": [
     "node",
     "steamcmd",
@@ -9,29 +9,32 @@
   "description": "Allows you to access and use SteamCMD via JavaScript",
   "license": "MIT",
   "author": "Jens Tschirpig",
-  "main": "class-implementation.js",
+  "main": "src/SteamCmd.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
   },
-  "scripts": {
-    "test": "mocha ./**/*.spec.js --reporter spec"
+  "engines": {
+    "node": ">=12.11"
   },
+  "files": [
+    "src/*"
+  ],
+  "scripts": {},
   "dependencies": {
-    "fs-extra": "^4.0.1",
-    "lodash.defaults": "^4.2.0",
-    "mkdirp": "^0.5.1",
-    "request": "^2.88.0",
+    "axios": "^0.19.0",
+    "extract-zip": "^1.6.7",
+    "file-type": "^12.4.0",
+    "node-pty": "^0.9.0",
     "strip-ansi": "^4.0.0",
-    "tar": "^3.2.1",
-    "tmp-promise": "^1.0.3",
-    "tree-kill": "^1.1.0",
-    "unzip": "^0.1.11"
+    "tar": "^5.0.5",
+    "tmp-promise": "^1.1.0"
   },
   "devDependencies": {
-    "chai": "^4.1.2"
+    "babel-eslint": "^10.0.3",
+    "standard": "^14.3.1"
   },
-  "engines": {
-    "node": ">=8.3"
+  "standard": {
+    "parser": "babel-eslint"
   }
 }
