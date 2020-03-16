@@ -4,6 +4,8 @@ This library allows you to access
 
 This is compatible with Node > v12 on Windows, Linux, or Mac.
 
+You will need to follow the installation steps for node-pty [here](https://github.com/microsoft/node-pty#dependencies)
+
 ## Basic Usage Example
 1. Install the package
    ```sh
@@ -11,7 +13,7 @@ This is compatible with Node > v12 on Windows, Linux, or Mac.
    ```
 
 2. Import the class and create a new instance using the `init` function. This
-   is an _asynchronous_ function that downloads all the binaries, creates a new 
+   is an _asynchronous_ function that downloads all the binaries, creates a new
    instance of SteamCmd, ensures that it can run, and then returns the instance
    ```js
    const { SteamCmd } = require('steamcmd-interface')
@@ -55,9 +57,9 @@ the behaviour of the instance. The following options are available:
   })
   ```
 - Setting a user name for downloading purchased games.
-  
+
   **Note** that this will only work if you successfully logged in once and
-  SteamCMD has your credentials cached. See the ["Logging In"](#logging-in) 
+  SteamCMD has your credentials cached. See the ["Logging In"](#logging-in)
   section below for more details.
   ```js
   SteamCmd.init({
@@ -93,7 +95,7 @@ SteamCmd offers two login-related functions:
    ```js
    const steamCmd = await SteamCmd.init({
      // Specifying the username here is not strictly necessary, because the
-     // call to "login" below will update the internally saved username. 
+     // call to "login" below will update the internally saved username.
      username: 'example'
    })
    await steamCmd.login('example', 'password123', 'AABB2')
@@ -122,7 +124,7 @@ You can search for your game to get the app ID on
 This function also optionally accepts the platform type and bitness of the
 application. This will allow you to download, for example, Windows games on a
 Mac. If omitted then the platform and bitness of the current operating system
-are used. 
+are used.
 
 ### Example
 ```js
@@ -188,7 +190,7 @@ try {
       console.log(progress)
     }
 } catch (error) {
-  // Logs "The application failed to install for some reason. Reasons include: 
+  // Logs "The application failed to install for some reason. Reasons include:
   // you do not own the application, you do not have enough hard drive space,
   // or a network error occurred." This is because we logged in anonymously
   // above and are therefore not allowed to download Half-Life 2.
@@ -197,7 +199,7 @@ try {
   // Logs "8"
   console.log(error.exitCode)
 
-  // Logs "The application failed to install for some reason. Reasons include: 
+  // Logs "The application failed to install for some reason. Reasons include:
   // you do not own the application, you do not have enough hard drive space,
   // or a network error occurred."
   console.log(SteamCmdError.getErrorMessage(error.exitCode))
