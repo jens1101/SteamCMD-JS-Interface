@@ -305,7 +305,7 @@ class SteamCmd {
     await extractArchive(tempFile.path, this.#binDir)
 
     // Cleanup the temp file
-    tempFile.cleanup()
+    await tempFile.cleanup()
 
     try {
       // Test if the file is accessible and executable
@@ -391,7 +391,7 @@ class SteamCmd {
     this.#currentSteamCmdPty = null
 
     // Cleanup the temp file
-    commandFile.cleanup()
+    await commandFile.cleanup()
 
     // Throw an error if Steam CMD quit abnormally
     if (exitCode !== SteamCmdError.EXIT_CODES.NO_ERROR &&

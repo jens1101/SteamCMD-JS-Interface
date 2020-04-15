@@ -1,5 +1,4 @@
-const fs = require('fs')
-const fileType = require('file-type')
+const FileType = require('file-type')
 const extractZip = require('extract-zip')
 const tar = require('tar')
 
@@ -16,17 +15,9 @@ exports.extractArchive = extractArchive
  * @throws Error when the archive format is not recognised.
  */
 async function extractArchive (pathToArchive, targetDirectory) {
-  const fileHandle = await fs.promises.open(pathToArchive, 'r')
+  const fileTypeDetails = await FileType.fromFile(pathToArchive)
 
-  const { buffer } = await fileHandle.read(
-    Buffer.alloc(fileType.minimumBytes),
-    0,
-    fileType.minimumBytes,
-    0)
-
-  await fileHandle.close()
-
-  switch (fileType(buffer).mime) {
+  switch (fileTypeDetails.mime) {
     case 'application/gzip':
       return tar.extract({
         cwd: targetDirectory,
@@ -34,12 +25,7 @@ async function extractArchive (pathToArchive, targetDirectory) {
         file: pathToArchive
       })
     case 'application/zip':
-      return new Promise((resolve, reject) => {
-        extractZip(pathToArchive, { dir: targetDirectory }, err => {
-          if (err) reject(err)
-          else resolve()
-        })
-      })
+      return extractZip(pathToArchive, { dir: targetDirectory })
     default:
       throw new Error('Archive format not recognised')
   }
