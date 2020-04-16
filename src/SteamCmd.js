@@ -247,7 +247,7 @@ class SteamCmd {
       noAutoLogin: true
     })) {}
 
-    // If the login succeeded then updated the currently saved username.
+    // If the login succeeded then update the currently saved username.
     this.#username = username
   }
 
