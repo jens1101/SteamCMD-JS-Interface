@@ -1,7 +1,7 @@
 /**
  * A queue which has an asynchronous dequeue call.
  */
-class AsyncQueue {
+export class AsyncQueue {
   /**
    * The internal queue of items
    * @type {Array}
@@ -152,5 +152,3 @@ class AsyncQueue {
     }
   }
 }
-
-exports.AsyncQueue = AsyncQueue
