@@ -47,6 +47,11 @@ class SteamCmdError extends Error {
      */
     FAILED_TO_INSTALL: 8,
     /**
+     * Indicates that a command had missing parameters or that the user is not
+     * logged in.
+     */
+    MISSING_PARAMETERS_OR_NOT_LOGGED_IN: 10,
+    /**
      * Indicated that a Steam guard code is required before the login can
      * finish.
      */
@@ -97,6 +102,9 @@ class SteamCmdError extends Error {
         return 'The application failed to install for some reason. Reasons ' +
           'include: you do not own the application, you do not have enough ' +
           'hard drive space, or a network error occurred.'
+      case SteamCmdError.EXIT_CODES.MISSING_PARAMETERS_OR_NOT_LOGGED_IN:
+        return 'One of your commands has missing parameters or you are not ' +
+          'logged in'
       case SteamCmdError.EXIT_CODES.STEAM_GUARD_CODE_REQUIRED:
         return 'A Steam Guard code was required to log in'
       // It is still unknown what exit code 7 means. That's why the error

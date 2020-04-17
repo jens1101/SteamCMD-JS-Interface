@@ -210,7 +210,9 @@ class SteamCmd {
 
     // Test that the executable is in working condition
     // eslint-disable-next-line no-unused-vars
-    for await (const line of steamCmd.run([])) {}
+    for await (const line of steamCmd.run([], {
+      noAutoLogin: true
+    })) {}
 
     // Finally return the ready-to-be-used instance
     return steamCmd
@@ -241,9 +243,11 @@ class SteamCmd {
     // Run the login command. This will throw an error if the login was
     // unsuccessful.
     // eslint-disable-next-line no-unused-vars
-    for await (const line of this.run([loginCommand.join(' ')])) {}
+    for await (const line of this.run([loginCommand.join(' ')], {
+      noAutoLogin: true
+    })) {}
 
-    // If the login succeeded then updated the currently saved username.
+    // If the login succeeded then update the currently saved username.
     this.#username = username
   }
 
@@ -329,40 +333,46 @@ class SteamCmd {
    * https://github.com/dgibbs64/SteamCMD-Commands-List/blob/master/steamcmd_commands.txt
    *
    * The following commands will be prepended to the given array of commands:
-   * "@ShutdownOnFailedCommand 1" and "@NoPromptForPassword 1". This ensures
-   * that the executable will quit the moment it encounters an error and that
-   * it will not prompt for a password on login (since that could suspend the
-   * process indefinitely). These commands can be overwritten by adding them to
-   * the `commands` parameter.
    *
-   * The "quit" command will always be appended to the given array of commands.
-   * This ensures that Steam CMD will always quit once the script file has been
-   * run successfully. This ensures that the process will not hang once the
-   * script has been executed and it **cannot** be overwritten.
+   * - `@ShutdownOnFailedCommand 1`: This ensures that the executable will quit
+   *   the moment it encounters an error
+   * - `@NoPromptForPassword 1`: This ensures that the executable will not
+   *   prompt for a password on login (since that could suspend the process
+   *   indefinitely).
+   * - `login [username]`: This logs in the currently saved user
+   *
+   * The following commands will be appended to the given array of commands:
+   *
+   * - `quit`: This ensures that Steam CMD will always quit once the script
+   *   file has been run successfully. This ensures that the process will not
+   *   hang once the script has been executed.
+   *
+   * The behaviour of this function can be customised via the `options`
+   * parameter.
    * @param {string[]} commands An array of commands that must be executed via
    * Steam CMD
+   * @param {Object} [options] Options to change the behaviour of the run
+   * command.
+   * @param {boolean} [options.noAutoLogin=false] Whether or not to
+   * automatically append the `login` command to the given array of commands.
    * @yields {string} Each line of output from the Steam CMD executable until
    * it terminates.
    * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
    * with a non-zero exit code.
    */
-  async * run (commands) {
-    // By default we want:
-    // - Steam CMD to shutdown once it encountered an error
-    // - Steam CMD should not prompt for a password, because stdin is not
-    //   available in this context.
-    //
-    // These options can still be overwritten by setting them in the `commands`
-    // array.
-    commands.unshift('@ShutdownOnFailedCommand 1')
-    commands.unshift('@NoPromptForPassword 1')
-
-    // Appending the 'quit' command to make sure that SteamCMD will always quit.
-    commands.push('quit')
+  async * run (commands, options = {}) {
+    const allCommands = [
+      '@ShutdownOnFailedCommand 1',
+      '@NoPromptForPassword 1',
+      options.noAutoLogin ? '' : `login "${this.#username}"`,
+      ...commands,
+      'quit'
+    ]
 
     // Create a temporary file that will hold our commands
     const commandFile = await tmp.file()
-    await fs.promises.appendFile(commandFile.path, commands.join('\n') + '\n')
+    await fs.promises.appendFile(commandFile.path,
+      allCommands.join('\n') + '\n')
 
     // Spawn Steam CMD as a process
     const steamCmdPty = pty.spawn(this.exePath, [
@@ -431,7 +441,6 @@ class SteamCmd {
     await fs.promises.mkdir(this.#installDir, { recursive: true })
 
     const commands = [
-      `login "${this.#username}"`,
       `force_install_dir "${this.#installDir}"`,
       `app_update ${appId}`
     ]
