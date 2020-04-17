@@ -6,20 +6,21 @@ This is compatible with Node >= v12 on Windows, Linux, or Mac.
 
 ## Setup
 - Node >= 12
-- **For Windows users**:
-  - [Windows-Build-Tools](https://github.com/felixrieseberg/windows-build-tools)
-    these can be installed via the following command:
-    ```shell script
-    npm install --global windows-build-tools
-    ```
-  - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/),
-    only the "Desktop C++ Apps" components need to be installed
-- **For Linux users**:
-  - _Make_, _Python_, and _build essential_. On Ubuntu these can be installed
-    like this:
-    ```shell script
-    sudo apt install -y make python build-essential
-    ```
+- Install the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
+  - **For Windows users**:
+    - [Windows-Build-Tools](https://github.com/felixrieseberg/windows-build-tools)
+      these can be installed via the following command:
+      ```shell script
+      npm install --global windows-build-tools
+      ```
+    - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/),
+      only the "Desktop C++ Apps" components need to be installed
+  - **For Linux users**:
+    - _Make_, _Python_, and _build essential_. On Ubuntu these can be installed
+      like this:
+      ```shell script
+      sudo apt install -y make python build-essential
+      ```
 
 ## Basic Usage Example
 1. Install the package
