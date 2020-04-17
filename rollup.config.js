@@ -4,7 +4,6 @@ import pkg from './package.json'
 export default [
   {
     input: 'src/SteamCmd.js',
-    external: ['ms'],
     output: [
       { file: pkg.main, format: 'cjs' },
       { file: pkg.module, format: 'es' }
@@ -13,6 +12,17 @@ export default [
       babel({
         exclude: ['node_modules/**']
       })
+    ],
+    external: [
+      'path',
+      'fs',
+      'tmp-promise',
+      'axios',
+      'node-pty',
+      'file-type',
+      'extract-zip',
+      'tar',
+      'strip-ansi'
     ]
   }
 ]
