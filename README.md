@@ -1,11 +1,11 @@
 # SteamCMD JavaScript Interface
 This library allows you to access
-[SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) via JavaScript.
-
-This is compatible with Node >= v12 on Windows, Linux, or Mac.
+[SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) via NodeJS on
+Windows, Linux, or Mac.
 
 ## Setup
-- Node >= 12
+- A [maintained Node version](https://github.com/nodejs/Release#release-schedule).
+  This is currently versions >= 10.
 - Install the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
   - **For Windows users**:
     - [Windows-Build-Tools](https://github.com/felixrieseberg/windows-build-tools)

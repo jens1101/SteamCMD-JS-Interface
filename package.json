@@ -9,7 +9,8 @@
   "description": "Allows you to access and use SteamCMD via JavaScript",
   "license": "MIT",
   "author": "Jens Tschirpig",
-  "main": "src/SteamCmd.js",
+  "main": "dist/steam-cmd.cjs",
+  "module": "dist/steam-cmd.mjs",
   "repository": {
     "type": "git",
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
@@ -18,9 +19,12 @@
     "node": ">=12.11"
   },
   "files": [
-    "src/*"
+    "dist/*"
   ],
-  "scripts": {},
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
   "dependencies": {
     "axios": "^0.19.2",
     "extract-zip": "^2.0.0",
@@ -31,7 +35,12 @@
     "tmp-promise": "^2.0.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.9.0",
+    "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/preset-env": "^7.9.5",
     "babel-eslint": "^10.1.0",
+    "rollup": "^2.6.1",
+    "rollup-plugin-babel": "^4.4.0",
     "standard": "^14.3.3"
   },
   "standard": {

@@ -4,7 +4,7 @@
  *
  * This class also contains some useful static members.
  */
-class SteamCmdError extends Error {
+export class SteamCmdError extends Error {
   /**
    * These are all exit codes that SteamCMD can use. This is not an exhaustive
    * list yet.
@@ -115,5 +115,3 @@ class SteamCmdError extends Error {
     }
   }
 }
-
-exports.SteamCmdError = SteamCmdError

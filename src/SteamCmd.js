@@ -1,11 +1,11 @@
-const path = require('path')
-const fs = require('fs')
-const tmp = require('tmp-promise')
-const axios = require('axios')
-const pty = require('node-pty')
-const { getPtyDataIterator, getPtyExitPromise } = require('./lib/nodePtyUtils')
-const { extractArchive } = require('./lib/extractArchive')
-const { SteamCmdError } = require('./SteamCmdError')
+import path from 'path'
+import fs from 'fs'
+import tmp from 'tmp-promise'
+import axios from 'axios'
+import pty from 'node-pty'
+import { getPtyDataIterator, getPtyExitPromise } from './lib/nodePtyUtils'
+import { extractArchive } from './lib/extractArchive'
+import { SteamCmdError } from './SteamCmdError'
 
 /**
  * A progress update on an app update. This typically reports how much of an
@@ -31,7 +31,7 @@ const { SteamCmdError } = require('./SteamCmdError')
  * allows you to download the SteamCMD binaries, login with a custom user
  * account, update an app, etc.
  */
-class SteamCmd {
+export class SteamCmd {
   /**
    * Used to indicate to the constructor that it's being legally called.
    * `SteamCmd.init` sets this to true and then calls the constructor. If this
@@ -489,5 +489,3 @@ class SteamCmd {
     }
   }
 }
-
-exports.SteamCmd = SteamCmd

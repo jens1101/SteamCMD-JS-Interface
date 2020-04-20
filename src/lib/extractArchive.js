@@ -1,8 +1,6 @@
-const FileType = require('file-type')
-const extractZip = require('extract-zip')
-const tar = require('tar')
-
-exports.extractArchive = extractArchive
+import FileType from 'file-type'
+import extractZip from 'extract-zip'
+import tar from 'tar'
 
 /**
  * Extracts the contents of the given archive to the destination folder.
@@ -14,7 +12,7 @@ exports.extractArchive = extractArchive
  * @returns {Promise<void>} Resolves once the archive has been extracted.
  * @throws Error when the archive format is not recognised.
  */
-async function extractArchive (pathToArchive, targetDirectory) {
+export async function extractArchive (pathToArchive, targetDirectory) {
   const fileTypeDetails = await FileType.fromFile(pathToArchive)
 
   switch (fileTypeDetails.mime) {

@@ -1,10 +1,5 @@
-const { AsyncQueue } = require('./AsyncQueue')
-const stripAnsi = require('strip-ansi')
-
-module.exports = {
-  getPtyDataIterator,
-  getPtyExitPromise
-}
+import { AsyncQueue } from './AsyncQueue'
+import stripAnsi from 'strip-ansi'
 
 /**
  * Returns all the "data" events as a string for the given pseudo terminal
@@ -17,7 +12,7 @@ module.exports = {
  * be trimmed.
  * @yields {string} The line of output from the pseudo terminal
  */
-async function * getPtyDataIterator (pty, raw = false) {
+export async function * getPtyDataIterator (pty, raw = false) {
   /**
    * A queue of all the output that has been returned by the pseudo terminal
    * @type {AsyncQueue}
@@ -63,7 +58,7 @@ async function * getPtyDataIterator (pty, raw = false) {
  * @returns {Promise<number>} A promise that resolves into the exit code of the
  * process.
  */
-async function getPtyExitPromise (pty) {
+export async function getPtyExitPromise (pty) {
   return new Promise(resolve => {
     // noinspection JSUnresolvedFunction
     const { dispose: disposeExitListener } = pty.onExit(event => {
