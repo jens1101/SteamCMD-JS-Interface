@@ -9,8 +9,8 @@
   "description": "Allows you to access and use SteamCMD via JavaScript",
   "license": "MIT",
   "author": "Jens Tschirpig",
-  "main": "dist/steam-cmd.cjs.js",
-  "module": "dist/steam-cmd.esm.js",
+  "main": "dist/steam-cmd.cjs",
+  "module": "dist/steam-cmd.mjs",
   "repository": {
     "type": "git",
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
