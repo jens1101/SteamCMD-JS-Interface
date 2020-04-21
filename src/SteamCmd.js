@@ -299,24 +299,25 @@ export class SteamCmd {
 
     // Create a temp file into which the archive will be downloaded
     const tempFile = await tmp.file()
+    try {
+      // Download the archive and steam it into the temp file
+      const responseStream = await axios.get(this.#downloadUrl, {
+        responseType: 'stream'
+      })
 
-    // Download the archive and steam it into the temp file
-    const responseStream = await axios.get(this.#downloadUrl, {
-      responseType: 'stream'
-    })
+      const tempFileWriteStream = fs.createWriteStream(tempFile.path)
 
-    const tempFileWriteStream = fs.createWriteStream(tempFile.path)
+      responseStream.data.pipe(tempFileWriteStream)
+      await new Promise(resolve => {
+        tempFileWriteStream.on('finish', resolve)
+      })
 
-    responseStream.data.pipe(tempFileWriteStream)
-    await new Promise(resolve => {
-      tempFileWriteStream.on('finish', resolve)
-    })
-
-    // Extract the Steam CMD executable from the archive
-    await extractArchive(tempFile.path, this.#binDir)
-
-    // Cleanup the temp file
-    await tempFile.cleanup()
+      // Extract the Steam CMD executable from the archive
+      await extractArchive(tempFile.path, this.#binDir)
+    } finally {
+      // Cleanup the temp file
+      await tempFile.cleanup()
+    }
 
     try {
       // Test if the file is accessible and executable
@@ -378,42 +379,45 @@ export class SteamCmd {
 
     // Create a temporary file that will hold our commands
     const commandFile = await tmp.file()
-    await fs.promises.appendFile(commandFile.path,
-      allCommands.join('\n') + '\n')
 
-    // Spawn Steam CMD as a process
-    const steamCmdPty = pty.spawn(this.exePath, [
-      `+runscript ${commandFile.path}`
-    ], {
-      cwd: __dirname
-    })
+    try {
+      await fs.promises.appendFile(commandFile.path,
+        allCommands.join('\n') + '\n')
 
-    this.#currentSteamCmdPty = steamCmdPty
+      // Spawn Steam CMD as a process
+      const steamCmdPty = pty.spawn(this.exePath, [
+        `+runscript ${commandFile.path}`
+      ], {
+        cwd: __dirname
+      })
 
-    // Create a promise that will resolve once the Steam CMD process closed.
-    const exitPromise = getPtyExitPromise(steamCmdPty)
+      this.#currentSteamCmdPty = steamCmdPty
 
-    // Convert the chunks to lines and then iterate over them.
-    for await (const outputLine of getPtyDataIterator(steamCmdPty)) {
-      if (this.enableDebugLogging) console.log(outputLine)
-      yield outputLine
-    }
+      // Create a promise that will resolve once the Steam CMD process closed.
+      const exitPromise = getPtyExitPromise(steamCmdPty)
 
-    // Once the output has been iterated over then wait for the process to exit
-    // and get the exit code
-    const exitCode = await exitPromise
+      // Convert the chunks to lines and then iterate over them.
+      for await (const outputLine of getPtyDataIterator(steamCmdPty)) {
+        if (this.enableDebugLogging) console.log(outputLine)
+        yield outputLine
+      }
 
-    // Set the current Steam CMD process to `null` because the process
-    // finished running.
-    this.#currentSteamCmdPty = null
+      // Once the output has been iterated over then wait for the process to
+      // exit and get the exit code
+      const exitCode = await exitPromise
 
-    // Cleanup the temp file
-    await commandFile.cleanup()
+      // Set the current Steam CMD process to `null` because the process
+      // finished running.
+      this.#currentSteamCmdPty = null
 
-    // Throw an error if Steam CMD quit abnormally
-    if (exitCode !== SteamCmdError.EXIT_CODES.NO_ERROR &&
-      exitCode !== SteamCmdError.EXIT_CODES.INITIALIZED) {
-      throw new SteamCmdError(exitCode)
+      // Throw an error if Steam CMD quit abnormally
+      if (exitCode !== SteamCmdError.EXIT_CODES.NO_ERROR &&
+        exitCode !== SteamCmdError.EXIT_CODES.INITIALIZED) {
+        throw new SteamCmdError(exitCode)
+      }
+    } finally {
+      // Always cleanup the temp file
+      await commandFile.cleanup()
     }
   }
 
