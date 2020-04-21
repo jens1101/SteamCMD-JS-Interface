@@ -139,9 +139,7 @@ export class SteamCmd {
     }
 
     // Kill the current pseudo terminal if this process is being terminated
-    process.once('exit', () => {
-      if (this.#currentSteamCmdPty) this.#currentSteamCmdPty.kill()
-    })
+    process.once('exit', () => this.cleanup())
   }
 
   /**
@@ -216,6 +214,15 @@ export class SteamCmd {
 
     // Finally return the ready-to-be-used instance
     return steamCmd
+  }
+
+  /**
+   * Cleans up all the resources associated with this instance
+   */
+  cleanup () {
+    if (this.#currentSteamCmdPty) this.#currentSteamCmdPty.kill()
+
+    this.#currentSteamCmdPty = null
   }
 
   /**
