@@ -320,12 +320,20 @@ export class SteamCmd {
     }
 
     try {
+      await fs.promises.chmod(this.exePath, 0o755)
+    } catch (error) {
+      // If the Steam CMD executable's permissions couldn't be set then throw
+      // an error.
+      throw new Error("Steam CMD executable's permissions could not be set")
+    }
+
+    try {
       // Test if the file is accessible and executable
       await fs.promises.access(this.exePath, fs.constants.X_OK)
     } catch (ex) {
       // If the Steam CMD executable couldn't be accessed as an executable
       // then throw an error.
-      throw new Error('Steam CMD executable not found in archive')
+      throw new Error('Steam CMD executable cannot be run')
     }
   }
 
