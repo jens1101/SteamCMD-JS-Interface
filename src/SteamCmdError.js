@@ -43,7 +43,8 @@ export class SteamCmdError extends Error {
     /**
      * Indicates that the application that you tried to update failed to
      * install. This can happen if you don't own it, if you don't have enough
-     * hard drive space, or if a network error occurred.
+     * hard drive space, if a network error occurred, or if the application is
+     * not available for your selected platform.
      */
     FAILED_TO_INSTALL: 8,
     /**
@@ -101,7 +102,8 @@ export class SteamCmdError extends Error {
       case SteamCmdError.EXIT_CODES.FAILED_TO_INSTALL:
         return 'The application failed to install for some reason. Reasons ' +
           'include: you do not own the application, you do not have enough ' +
-          'hard drive space, or a network error occurred.'
+          'hard drive space, a network error occurred, or the application ' +
+          'is not available for your selected platform.'
       case SteamCmdError.EXIT_CODES.MISSING_PARAMETERS_OR_NOT_LOGGED_IN:
         return 'One of your commands has missing parameters or you are not ' +
           'logged in'
