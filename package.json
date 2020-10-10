@@ -26,24 +26,24 @@
     "test": "standard && jest"
   },
   "dependencies": {
-    "axios": "^0.19.2",
-    "extract-zip": "^2.0.0",
-    "file-type": "^14.1.4",
+    "axios": "^0.20.0",
+    "extract-zip": "^2.0.1",
+    "file-type": "^15.0.1",
     "node-pty": "^0.9.0",
     "strip-ansi": "^6.0.0",
-    "tar": "^6.0.1",
-    "tmp-promise": "^2.0.2"
+    "tar": "^6.0.5",
+    "tmp-promise": "^3.0.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.9.0",
-    "@babel/plugin-proposal-class-properties": "^7.8.3",
-    "@babel/preset-env": "^7.9.5",
+    "@babel/core": "^7.11.6",
+    "@babel/plugin-proposal-class-properties": "^7.10.4",
+    "@babel/preset-env": "^7.11.5",
     "babel-eslint": "^10.1.0",
-    "babel-jest": "^25.4.0",
-    "jest": "^25.4.0",
-    "rollup": "^2.6.1",
+    "babel-jest": "^26.5.2",
+    "jest": "^26.5.2",
+    "rollup": "^2.29.0",
     "rollup-plugin-babel": "^4.4.0",
-    "standard": "^14.3.3"
+    "standard": "^14.3.4"
   },
   "standard": {
     "parser": "babel-eslint"
