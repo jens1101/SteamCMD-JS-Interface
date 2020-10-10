@@ -300,7 +300,7 @@ export class SteamCmd {
     // Create a temp file into which the archive will be downloaded
     const tempFile = await tmp.file()
     try {
-      // Download the archive and steam it into the temp file
+      // Download the archive and stream it into the temp file
       const responseStream = await axios.get(this.#downloadUrl, {
         responseType: 'stream'
       })
@@ -320,10 +320,10 @@ export class SteamCmd {
     }
 
     try {
+      // Automatically set the correct file permissions for the executable
       await fs.promises.chmod(this.exePath, 0o755)
     } catch (error) {
-      // If the Steam CMD executable's permissions couldn't be set then throw
-      // an error.
+      // If the executable's permissions couldn't be set then throw an error.
       throw new Error("Steam CMD executable's permissions could not be set")
     }
 
