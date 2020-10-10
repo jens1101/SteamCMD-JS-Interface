@@ -139,9 +139,7 @@ export class SteamCmd {
     }
 
     // Kill the current pseudo terminal if this process is being terminated
-    process.once('exit', () => {
-      if (this.#currentSteamCmdPty) this.#currentSteamCmdPty.kill()
-    })
+    process.once('exit', () => this.cleanup())
   }
 
   /**
@@ -219,6 +217,15 @@ export class SteamCmd {
   }
 
   /**
+   * Cleans up all the resources associated with this instance
+   */
+  cleanup () {
+    if (this.#currentSteamCmdPty) this.#currentSteamCmdPty.kill()
+
+    this.#currentSteamCmdPty = null
+  }
+
+  /**
    * Log in to a Steam account.
    * @param {string} username The username of the account to which to log in
    * to. Can be "anonymous" for anonymous login. This will update the username
@@ -292,24 +299,33 @@ export class SteamCmd {
 
     // Create a temp file into which the archive will be downloaded
     const tempFile = await tmp.file()
+    try {
+      // Download the archive and stream it into the temp file
+      const responseStream = await axios.get(this.#downloadUrl, {
+        responseType: 'stream'
+      })
 
-    // Download the archive and steam it into the temp file
-    const responseStream = await axios.get(this.#downloadUrl, {
-      responseType: 'stream'
-    })
+      const tempFileWriteStream = fs.createWriteStream(tempFile.path)
 
-    const tempFileWriteStream = fs.createWriteStream(tempFile.path)
+      responseStream.data.pipe(tempFileWriteStream)
+      await new Promise(resolve => {
+        tempFileWriteStream.on('finish', resolve)
+      })
 
-    responseStream.data.pipe(tempFileWriteStream)
-    await new Promise(resolve => {
-      tempFileWriteStream.on('finish', resolve)
-    })
+      // Extract the Steam CMD executable from the archive
+      await extractArchive(tempFile.path, this.#binDir)
+    } finally {
+      // Cleanup the temp file
+      await tempFile.cleanup()
+    }
 
-    // Extract the Steam CMD executable from the archive
-    await extractArchive(tempFile.path, this.#binDir)
-
-    // Cleanup the temp file
-    await tempFile.cleanup()
+    try {
+      // Automatically set the correct file permissions for the executable
+      await fs.promises.chmod(this.exePath, 0o755)
+    } catch (error) {
+      // If the executable's permissions couldn't be set then throw an error.
+      throw new Error("Steam CMD executable's permissions could not be set")
+    }
 
     try {
       // Test if the file is accessible and executable
@@ -317,7 +333,7 @@ export class SteamCmd {
     } catch (ex) {
       // If the Steam CMD executable couldn't be accessed as an executable
       // then throw an error.
-      throw new Error('Steam CMD executable not found in archive')
+      throw new Error('Steam CMD executable cannot be run')
     }
   }
 
@@ -371,42 +387,45 @@ export class SteamCmd {
 
     // Create a temporary file that will hold our commands
     const commandFile = await tmp.file()
-    await fs.promises.appendFile(commandFile.path,
-      allCommands.join('\n') + '\n')
 
-    // Spawn Steam CMD as a process
-    const steamCmdPty = pty.spawn(this.exePath, [
-      `+runscript ${commandFile.path}`
-    ], {
-      cwd: __dirname
-    })
+    try {
+      await fs.promises.appendFile(commandFile.path,
+        allCommands.join('\n') + '\n')
 
-    this.#currentSteamCmdPty = steamCmdPty
+      // Spawn Steam CMD as a process
+      const steamCmdPty = pty.spawn(this.exePath, [
+        `+runscript ${commandFile.path}`
+      ], {
+        cwd: __dirname
+      })
 
-    // Create a promise that will resolve once the Steam CMD process closed.
-    const exitPromise = getPtyExitPromise(steamCmdPty)
+      this.#currentSteamCmdPty = steamCmdPty
 
-    // Convert the chunks to lines and then iterate over them.
-    for await (const outputLine of getPtyDataIterator(steamCmdPty)) {
-      if (this.enableDebugLogging) console.log(outputLine)
-      yield outputLine
-    }
+      // Create a promise that will resolve once the Steam CMD process closed.
+      const exitPromise = getPtyExitPromise(steamCmdPty)
 
-    // Once the output has been iterated over then wait for the process to exit
-    // and get the exit code
-    const exitCode = await exitPromise
+      // Convert the chunks to lines and then iterate over them.
+      for await (const outputLine of getPtyDataIterator(steamCmdPty)) {
+        if (this.enableDebugLogging) console.log(outputLine)
+        yield outputLine
+      }
 
-    // Set the current Steam CMD process to `null` because the process
-    // finished running.
-    this.#currentSteamCmdPty = null
+      // Once the output has been iterated over then wait for the process to
+      // exit and get the exit code
+      const exitCode = await exitPromise
 
-    // Cleanup the temp file
-    await commandFile.cleanup()
+      // Set the current Steam CMD process to `null` because the process
+      // finished running.
+      this.#currentSteamCmdPty = null
 
-    // Throw an error if Steam CMD quit abnormally
-    if (exitCode !== SteamCmdError.EXIT_CODES.NO_ERROR &&
-      exitCode !== SteamCmdError.EXIT_CODES.INITIALIZED) {
-      throw new SteamCmdError(exitCode)
+      // Throw an error if Steam CMD quit abnormally
+      if (exitCode !== SteamCmdError.EXIT_CODES.NO_ERROR &&
+        exitCode !== SteamCmdError.EXIT_CODES.INITIALIZED) {
+        throw new SteamCmdError(exitCode)
+      }
+    } finally {
+      // Always cleanup the temp file
+      await commandFile.cleanup()
     }
   }
 
