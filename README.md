@@ -21,6 +21,15 @@ Windows, Linux, or Mac.
       ```shell script
       sudo apt install -y make python build-essential
       ```
+  - **For Mac users**:
+    - Xcode Command Line Tools. These might be installed already. If you cannot
+      install this package then run:
+      ```shell script
+      xcode-select --install
+      ```
+
+      If you are still having trouble then see the troubleshooting section
+      below.
 
 ## Basic Usage Example
 1. Install the package
@@ -207,17 +216,19 @@ try {
     }
 } catch (error) {
   // Logs "The application failed to install for some reason. Reasons include:
-  // you do not own the application, you do not have enough hard drive space,
-  // or a network error occurred." This is because we logged in anonymously
-  // above and are therefore not allowed to download Half-Life 2.
+  // you do not own the application, you do not have enough hard drive space, a
+  // network error occurred, or the application is not available for your
+  // selected platform." This is because we logged in anonymously above and are
+  // therefore not allowed to download Half-Life 2.
   console.log(error.message)
 
   // Logs "8"
   console.log(error.exitCode)
 
   // Logs "The application failed to install for some reason. Reasons include:
-  // you do not own the application, you do not have enough hard drive space,
-  // or a network error occurred."
+  // you do not own the application, you do not have enough hard drive space, a
+  // network error occurred, or the application is not available for your
+  // selected platform."
   console.log(SteamCmdError.getErrorMessage(error.exitCode))
 
   // Logs all the currently known exit codes.
@@ -252,6 +263,22 @@ console. There are two ways you can enable debug logging:
     then the build fails.
 - `Error: The module '[...]/pty.node' was compiled against a different Node.js`
   - Run `npm rebuild`
+- `gyp: No Xcode or CLT version detected!`
+  - If you are running MacOS Catalina then see
+    [this](https://github.com/nodejs/node-gyp/blob/master/macOS_Catalina.md)
+    extensive troubleshooting guide.
+  - If you are not on MacOS Catalina then try one of the following:
+    1. Run
+       ```shell script
+       xcode-select --install
+       ```
+    2. Run
+       ```shell script
+       sudo rm -rf $(xcode-select --print-path)
+       xcode-select --install
+       ```
+    3. See the MacOS Catalina guide above. It's still useful even if you don't
+       run the same OS version.
 
 ## Resources
 - [SteamCMD home page](https://developer.valvesoftware.com/wiki/SteamCMD)

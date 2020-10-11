@@ -1,6 +1,6 @@
 {
   "name": "steamcmd-interface",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "keywords": [
     "node",
     "steamcmd",
@@ -16,7 +16,7 @@
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
   },
   "engines": {
-    "node": ">=12.11"
+    "node": ">=10.0.0"
   },
   "files": [
     "dist/*"
