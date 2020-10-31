@@ -21,7 +21,7 @@ let steamCmd
 function calculateDownloadTimeout (downloadSize) {
   /** Download speed in bits per second */
   const DOWNLOAD_SPEED = 9_000_000
-  const SAFETY_FACTOR = 1.5
+  const SAFETY_FACTOR = 3
 
   return downloadSize / (DOWNLOAD_SPEED / 8) * 1000 * SAFETY_FACTOR
 }
@@ -31,7 +31,7 @@ global.beforeAll(
     const tempDir = path.join(__dirname, '../temp')
     await fs.promises.rmdir(tempDir, { recursive: true })
 
-    steamCmd = await SteamCmd.init()
+    steamCmd = await SteamCmd.init({ enableDebugLogging: true })
   },
   // SteamCMD downloads about 20MB on first launch. Set the timeout accordingly.
   calculateDownloadTimeout(20_000_000)
@@ -49,7 +49,11 @@ global.test(
   async () => {
     // Download the Source SDK Base 2013 Dedicated Server. This is the smallest
     // app I could find that may be downloaded anonymously.
-    const download = steamCmd.updateApp(244310, 'linux', 64)
+    const download = steamCmd.updateApp(244310, {
+      platformType: 'linux',
+      platformBitness: 64,
+      betaName: 'prerelease'
+    })
 
     for await (const { state, progressPercent } of download) {
       console.log(`Update state: ${state} ${progressPercent.toFixed(2)}%`)

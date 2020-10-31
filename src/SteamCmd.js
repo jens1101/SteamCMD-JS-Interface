@@ -175,31 +175,31 @@ export class SteamCmd {
    * instance.
    * @param {Object} [options] A set of options that affect how SteamCmd works.
    * @param {string} [options.binDir] The absolute path to where the Steam CMD
-   * executable will be downloaded to. Defaults to "steamcmd_bin" in the
+   * executable will be downloaded to. Defaults to "temp/steamcmd_bin" in the
    * current directory.
    * @param {string} [options.installDir] The absolute path to where Steam apps
-   * will be installed to. Defaults to "install_dir" in the current directory.
-   * @param {string} [options.username] The username to log into Steam.
-   * Defaults to 'anonymous'.
-   * @param {boolean} [enableDebugLogging = false] Whether or not all output of
-   * Steam CMD will be logged to the console. This is useful for debugging.
+   * will be installed to. Defaults to "temp/install_dir" in the current
+   * directory.
+   * @param {string} [options.username='anonymous'] The username to log into
+   * Steam.
+   * @param {boolean} [options.enableDebugLogging = false] Whether or not all
+   * output of Steam CMD will be logged to the console. This is useful for
+   * debugging.
    * @returns {Promise<SteamCmd>} Resolves into a ready-to-be-used SteamCmd
    * instance
    */
-  static async init (options, enableDebugLogging = false) {
+  static async init ({
+    binDir = path.join(__dirname, '../temp', 'steamcmd_bin', process.platform),
+    installDir = path.join(__dirname, '../temp', 'install_dir'),
+    username = 'anonymous',
+    enableDebugLogging = false
+  } = {}) {
     // Set the `initialising` variable to true to indicate to the constructor
     // that it's being legally called.
     SteamCmd.#initialising = true
 
-    const allOptions = Object.assign({
-      binDir: path.join(__dirname, '../temp', 'steamcmd_bin', process.platform),
-      installDir: path.join(__dirname, '../temp', 'install_dir'),
-      username: 'anonymous'
-    }, options)
-
     // Construct the new SteamCmd instance
-    const steamCmd = new SteamCmd(allOptions.binDir, allOptions.installDir,
-      allOptions.username)
+    const steamCmd = new SteamCmd(binDir, installDir, username)
 
     steamCmd.enableDebugLogging = enableDebugLogging
 
@@ -324,7 +324,7 @@ export class SteamCmd {
       await fs.promises.chmod(this.exePath, 0o755)
     } catch (error) {
       // If the executable's permissions couldn't be set then throw an error.
-      throw new Error("Steam CMD executable's permissions could not be set")
+      throw new Error('Steam CMD executable\'s permissions could not be set')
     }
 
     try {
@@ -376,11 +376,16 @@ export class SteamCmd {
    * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
    * with a non-zero exit code.
    */
-  async * run (commands, options = {}) {
+  async * run (
+    commands,
+    {
+      noAutoLogin = false
+    } = {}
+  ) {
     const allCommands = [
       '@ShutdownOnFailedCommand 1',
       '@NoPromptForPassword 1',
-      options.noAutoLogin ? '' : `login "${this.#username}"`,
+      noAutoLogin ? '' : `login "${this.#username}"`,
       ...commands,
       'quit'
     ]
@@ -434,12 +439,21 @@ export class SteamCmd {
    * partially downloaded in the current install directory then this will
    * simply continue that download process.
    * @param {number} appId The ID of the app to download.
-   * @param {string} [platformType] The platform type of the app that you want
-   * to download. If omitted then this will use the current platform. Must be
-   * one of "windows", "macos", or "linux".
-   * @param {number} [platformBitness] Indicates the bitness of the platform.
-   * Can be either 32 or 64. If omitted then this will use the current
+   * @param {Object} [options]
+   * @param {string} [options.platformType] The platform type of the app that
+   * you want to download. If omitted then this will use the current platform.
+   * Must be one of "windows", "macos", or "linux".
+   * @param {number} [options.platformBitness] Indicates the bitness of the
+   * platform. Can be either 32 or 64. If omitted then this will use the current
    * platform's bitness.
+   * @param {boolean} [options.validate=false] Whether or not to validate the
+   * files after download.
+   * @param [options.language] The language in which to download the app.
+   * @param [options.betaName] Used to download a beta branch of an app. Specify
+   * the name of the branch that you want to download, e.g.: "prerelease",
+   * "beta", etc. If omitted will download the publicly available app.
+   * @param [options.betaPassword] The password for downloading the beta branch
+   * (if applicable).
    * @yields {SteamCmd~UpdateProgress} Progress updates while the app is being
    * updated.
    * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
@@ -448,7 +462,17 @@ export class SteamCmd {
    * path. It must be absolute, because SteamCMD doesn't support relative
    * install directories.
    */
-  async * updateApp (appId, platformType, platformBitness) {
+  async * updateApp (
+    appId,
+    {
+      platformType,
+      platformBitness,
+      validate = false,
+      language,
+      betaName,
+      betaPassword
+    } = {}
+  ) {
     if (!path.isAbsolute(this.#installDir)) {
       // throw an error immediately because SteamCMD doesn't support relative
       // install directories.
@@ -459,9 +483,15 @@ export class SteamCmd {
     // Create the install directory if need be
     await fs.promises.mkdir(this.#installDir, { recursive: true })
 
+    const appUpdateCommand = [`app_update ${appId}`]
+    validate && appUpdateCommand.push('-validate')
+    language && appUpdateCommand.push(`-language ${language}`)
+    betaName && appUpdateCommand.push(`-beta ${betaName}`)
+    betaPassword && appUpdateCommand.push(`-betapassword ${betaPassword}`)
+
     const commands = [
       `force_install_dir "${this.#installDir}"`,
-      `app_update ${appId}`
+      appUpdateCommand.join(' ')
     ]
 
     if (platformBitness === 32 ||
@@ -477,8 +507,8 @@ export class SteamCmd {
 
     /**
      * This regular expression tests each line of output from Steam CMD. It
-     * will match dequeuedd the patten that is emitted when the current app is
-     * being downloaded.
+     * will match the patten that is emitted when the current app is being
+     * downloaded.
      * @type {RegExp}
      */
     const progressRegex =
@@ -494,8 +524,12 @@ export class SteamCmd {
       // If the pattern matched then we assign each one of the capture groups to
       // a variable
       const [
-        stateCode, state, progressPercent, progressAmount,
-        progressTotalAmount] = result.slice(1)
+        stateCode,
+        state,
+        progressPercent,
+        progressAmount,
+        progressTotalAmount
+      ] = result.slice(1)
 
       // Return the variables as an object.
       yield {
