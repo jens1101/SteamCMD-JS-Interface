@@ -31,7 +31,7 @@ global.beforeAll(
     const tempDir = path.join(__dirname, '../temp')
     await fs.promises.rmdir(tempDir, { recursive: true })
 
-    steamCmd = await SteamCmd.init()
+    steamCmd = await SteamCmd.init({ enableDebugLogging: true })
   },
   // SteamCMD downloads about 20MB on first launch. Set the timeout accordingly.
   calculateDownloadTimeout(20_000_000)

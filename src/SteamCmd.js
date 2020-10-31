@@ -175,31 +175,31 @@ export class SteamCmd {
    * instance.
    * @param {Object} [options] A set of options that affect how SteamCmd works.
    * @param {string} [options.binDir] The absolute path to where the Steam CMD
-   * executable will be downloaded to. Defaults to "steamcmd_bin" in the
+   * executable will be downloaded to. Defaults to "temp/steamcmd_bin" in the
    * current directory.
    * @param {string} [options.installDir] The absolute path to where Steam apps
-   * will be installed to. Defaults to "install_dir" in the current directory.
-   * @param {string} [options.username] The username to log into Steam.
-   * Defaults to 'anonymous'.
-   * @param {boolean} [enableDebugLogging = false] Whether or not all output of
-   * Steam CMD will be logged to the console. This is useful for debugging.
+   * will be installed to. Defaults to "temp/install_dir" in the current
+   * directory.
+   * @param {string} [options.username='anonymous'] The username to log into
+   * Steam.
+   * @param {boolean} [options.enableDebugLogging = false] Whether or not all
+   * output of Steam CMD will be logged to the console. This is useful for
+   * debugging.
    * @returns {Promise<SteamCmd>} Resolves into a ready-to-be-used SteamCmd
    * instance
    */
-  static async init (options, enableDebugLogging = false) {
+  static async init ({
+    binDir = path.join(__dirname, '../temp', 'steamcmd_bin', process.platform),
+    installDir = path.join(__dirname, '../temp', 'install_dir'),
+    username = 'anonymous',
+    enableDebugLogging = false
+  } = {}) {
     // Set the `initialising` variable to true to indicate to the constructor
     // that it's being legally called.
     SteamCmd.#initialising = true
 
-    const allOptions = Object.assign({
-      binDir: path.join(__dirname, '../temp', 'steamcmd_bin', process.platform),
-      installDir: path.join(__dirname, '../temp', 'install_dir'),
-      username: 'anonymous'
-    }, options)
-
     // Construct the new SteamCmd instance
-    const steamCmd = new SteamCmd(allOptions.binDir, allOptions.installDir,
-      allOptions.username)
+    const steamCmd = new SteamCmd(binDir, installDir, username)
 
     steamCmd.enableDebugLogging = enableDebugLogging
 
@@ -324,7 +324,7 @@ export class SteamCmd {
       await fs.promises.chmod(this.exePath, 0o755)
     } catch (error) {
       // If the executable's permissions couldn't be set then throw an error.
-      throw new Error("Steam CMD executable's permissions could not be set")
+      throw new Error('Steam CMD executable\'s permissions could not be set')
     }
 
     try {
