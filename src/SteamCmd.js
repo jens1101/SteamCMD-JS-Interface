@@ -376,11 +376,16 @@ export class SteamCmd {
    * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
    * with a non-zero exit code.
    */
-  async * run (commands, options = {}) {
+  async * run (
+    commands,
+    {
+      noAutoLogin = false
+    } = {}
+  ) {
     const allCommands = [
       '@ShutdownOnFailedCommand 1',
       '@NoPromptForPassword 1',
-      options.noAutoLogin ? '' : `login "${this.#username}"`,
+      noAutoLogin ? '' : `login "${this.#username}"`,
       ...commands,
       'quit'
     ]
