@@ -11,6 +11,7 @@
   "author": "Jens Tschirpig",
   "main": "dist/steam-cmd.cjs",
   "module": "dist/steam-cmd.mjs",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
@@ -23,29 +24,27 @@
   ],
   "scripts": {
     "build": "rollup -c",
-    "test": "standard && npm run build && jest"
+    "test": "standard && node --experimental-vm-modules node_modules/.bin/jest"
   },
   "dependencies": {
     "axios": "^0.21.1",
     "extract-zip": "^2.0.1",
-    "file-type": "^15.0.1",
-    "node-pty": "^0.9.0",
-    "strip-ansi": "^6.0.0",
-    "tar": "^6.0.5",
+    "file-type": "^16.5.3",
+    "node-pty": "^0.10.1",
+    "strip-ansi": "^7.0.0",
+    "tar": "^6.1.6",
     "tmp-promise": "^3.0.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.11.6",
-    "@babel/plugin-proposal-class-properties": "^7.10.4",
-    "@babel/preset-env": "^7.11.5",
-    "babel-eslint": "^10.1.0",
-    "babel-jest": "^26.5.2",
-    "jest": "^26.5.2",
-    "rollup": "^2.29.0",
-    "rollup-plugin-babel": "^4.4.0",
-    "standard": "^14.3.4"
+    "@babel/core": "^7.15.0",
+    "@babel/eslint-parser": "^7.15.0",
+    "@babel/preset-env": "^7.15.0",
+    "@rollup/plugin-babel": "^5.3.0",
+    "jest": "^27.0.6",
+    "rollup": "^2.56.0",
+    "standard": "^16.0.3"
   },
   "standard": {
-    "parser": "babel-eslint"
+    "parser": "@babel/eslint-parser"
   }
 }
