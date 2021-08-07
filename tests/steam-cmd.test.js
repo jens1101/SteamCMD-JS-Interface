@@ -2,9 +2,10 @@
  * @jest-environment node
  */
 
-import fs from 'fs'
-import path from 'path'
-import { SteamCmd } from '../dist/steam-cmd.cjs'
+import { rm } from 'fs/promises'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { SteamCmd } from '../src/SteamCmd'
 
 /**
  * The Steam CMD instance used throughout these tests
@@ -28,8 +29,8 @@ function calculateDownloadTimeout (downloadSize) {
 
 global.beforeAll(
   async () => {
-    const tempDir = path.join(__dirname, '../temp')
-    await fs.promises.rmdir(tempDir, { recursive: true })
+    const tempDir = join(dirname(fileURLToPath(import.meta.url)), '../temp')
+    await rm(tempDir, { force: true, recursive: true })
 
     steamCmd = await SteamCmd.init({ enableDebugLogging: true })
   },
@@ -41,7 +42,8 @@ global.test(
   'Can login anonymously',
   async () => {
     await steamCmd.login('anonymous')
-  }
+  },
+  20_000
 )
 
 global.test(

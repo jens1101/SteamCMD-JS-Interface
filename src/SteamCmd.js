@@ -1,11 +1,15 @@
-import path from 'path'
-import fs from 'fs'
-import tmp from 'tmp-promise'
+import { createWriteStream, constants } from 'fs'
+import { access, mkdir, chmod, appendFile } from 'fs/promises'
+import { dirname, join, isAbsolute } from 'path'
+import { fileURLToPath } from 'url'
 import axios from 'axios'
 import pty from 'node-pty'
+import { file } from 'tmp-promise'
 import { getPtyDataIterator, getPtyExitPromise } from './lib/nodePtyUtils'
 import { extractArchive } from './lib/extractArchive'
 import { SteamCmdError } from './SteamCmdError'
+
+const currentDirectory = dirname(fileURLToPath(import.meta.url))
 
 /**
  * A progress update on an app update. This typically reports how much of an
@@ -157,7 +161,7 @@ export class SteamCmd {
    * @type {string}
    */
   get exePath () {
-    return path.join(this.#binDir, this.#exeName)
+    return join(this.#binDir, this.#exeName)
   }
 
   /**
@@ -189,8 +193,9 @@ export class SteamCmd {
    * instance
    */
   static async init ({
-    binDir = path.join(__dirname, '../temp', 'steamcmd_bin', process.platform),
-    installDir = path.join(__dirname, '../temp', 'install_dir'),
+    binDir = join(currentDirectory, '../temp', 'steamcmd_bin',
+      process.platform),
+    installDir = join(currentDirectory, '../temp', 'install_dir'),
     username = 'anonymous',
     enableDebugLogging = false
   } = {}) {
@@ -210,7 +215,9 @@ export class SteamCmd {
     // eslint-disable-next-line no-unused-vars
     for await (const line of steamCmd.run([], {
       noAutoLogin: true
-    })) {}
+    })) {
+      // eslint-disable-next-line no-empty
+    }
 
     // Finally return the ready-to-be-used instance
     return steamCmd
@@ -252,7 +259,9 @@ export class SteamCmd {
     // eslint-disable-next-line no-unused-vars
     for await (const line of this.run([loginCommand.join(' ')], {
       noAutoLogin: true
-    })) {}
+    })) {
+      // eslint-disable-next-line no-empty
+    }
 
     // If the login succeeded then update the currently saved username.
     this.#username = username
@@ -288,24 +297,24 @@ export class SteamCmd {
     // an error then we know that is has already been downloaded and we can
     // return.
     try {
-      await fs.promises.access(this.exePath, fs.constants.X_OK)
+      await access(this.exePath, constants.X_OK)
       return
     } catch {}
 
     // If this part is reached then we need to download the executable.
 
     // Create the bin directory if need be
-    await fs.promises.mkdir(this.#binDir, { recursive: true })
+    await mkdir(this.#binDir, { recursive: true })
 
     // Create a temp file into which the archive will be downloaded
-    const tempFile = await tmp.file()
+    const tempFile = await file()
     try {
       // Download the archive and stream it into the temp file
       const responseStream = await axios.get(this.#downloadUrl, {
         responseType: 'stream'
       })
 
-      const tempFileWriteStream = fs.createWriteStream(tempFile.path)
+      const tempFileWriteStream = createWriteStream(tempFile.path)
 
       responseStream.data.pipe(tempFileWriteStream)
       await new Promise(resolve => {
@@ -321,7 +330,7 @@ export class SteamCmd {
 
     try {
       // Automatically set the correct file permissions for the executable
-      await fs.promises.chmod(this.exePath, 0o755)
+      await chmod(this.exePath, 0o755)
     } catch (error) {
       // If the executable's permissions couldn't be set then throw an error.
       throw new Error('Steam CMD executable\'s permissions could not be set')
@@ -329,7 +338,7 @@ export class SteamCmd {
 
     try {
       // Test if the file is accessible and executable
-      await fs.promises.access(this.exePath, fs.constants.X_OK)
+      await access(this.exePath, constants.X_OK)
     } catch (ex) {
       // If the Steam CMD executable couldn't be accessed as an executable
       // then throw an error.
@@ -391,17 +400,17 @@ export class SteamCmd {
     ]
 
     // Create a temporary file that will hold our commands
-    const commandFile = await tmp.file()
+    const commandFile = await file()
 
     try {
-      await fs.promises.appendFile(commandFile.path,
+      await appendFile(commandFile.path,
         allCommands.join('\n') + '\n')
 
       // Spawn Steam CMD as a process
       const steamCmdPty = pty.spawn(this.exePath, [
         `+runscript ${commandFile.path}`
       ], {
-        cwd: __dirname
+        cwd: currentDirectory
       })
 
       this.#currentSteamCmdPty = steamCmdPty
@@ -473,7 +482,7 @@ export class SteamCmd {
       betaPassword
     } = {}
   ) {
-    if (!path.isAbsolute(this.#installDir)) {
+    if (!isAbsolute(this.#installDir)) {
       // throw an error immediately because SteamCMD doesn't support relative
       // install directories.
       throw new TypeError(
@@ -481,7 +490,7 @@ export class SteamCmd {
     }
 
     // Create the install directory if need be
-    await fs.promises.mkdir(this.#installDir, { recursive: true })
+    await mkdir(this.#installDir, { recursive: true })
 
     const appUpdateCommand = [`app_update ${appId}`]
     validate && appUpdateCommand.push('-validate')

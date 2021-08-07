@@ -15,15 +15,17 @@ export default [
       })
     ],
     external: [
-      'path',
-      'fs',
-      'tmp-promise',
       'axios',
-      'node-pty',
-      'file-type',
       'extract-zip',
+      'file-type',
+      'fs',
+      'fs/promises',
+      'node-pty',
+      'path',
+      'strip-ansi',
       'tar',
-      'strip-ansi'
+      'tmp-promise',
+      'url'
     ]
   }
 ]
