@@ -5,8 +5,7 @@ export default [
   {
     input: 'src/SteamCmd.js',
     output: [
-      { file: pkg.main, format: 'cjs' },
-      { file: pkg.module, format: 'es' }
+      { file: pkg.main, format: 'es' }
     ],
     plugins: [
       babel({
