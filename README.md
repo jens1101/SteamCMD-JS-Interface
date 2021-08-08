@@ -41,8 +41,9 @@ Windows, Linux, or Mac.
    is an _asynchronous_ function that downloads all the binaries, creates a new
    instance of SteamCmd, ensures that it can run, and then returns the instance.
    ```js
-   const { SteamCmd } = require('steamcmd-interface')
-   const steamCmd = await SteamCmd.init()
+   import { SteamCmd } from 'steamcmd-interface'
+
+   const steamCmd = await SteamCmd.init({})
    ```
 
 3. Now you can use the instance to interact with SteamCMD. You can login with
@@ -239,14 +240,12 @@ try {
 ## Debugging
 You can enable debug logging where SteamCmd will log each line of output to the
 console. There are two ways you can enable debug logging:
-- By passing a parameter to the `init` function
+- By setting `enableDebugLogging` to `true` in the `init` function.
   ```js
-  // The second parameter enables or disables debug logging. By default it's
-  // disabled
-  SteamCmd.init({}, true)
+  SteamCmd.init({ enableDebugLogging: true })
   ```
 - By setting a class variable to true. This is useful for enabling or disabling
-  debug logging after initialisation
+  debug logging after initialisation.
   ```js
   const steamCmd = await SteamCmd.init()
 
