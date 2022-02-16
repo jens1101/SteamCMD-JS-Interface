@@ -5,7 +5,10 @@ Windows, Linux, or Mac.
 
 ## Setup
 - A [maintained Node version](https://github.com/nodejs/Release#release-schedule).
-  This is currently versions >= 10.
+  This is currently versions >= 12.
+  - There seems to be an issue with
+    [`node-pty` and Node 17](https://github.com/microsoft/node-pty/issues/527).
+    For now stick to Node <=16.
 - Install the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
   - **For Windows users**:
     - [Windows-Build-Tools](https://github.com/felixrieseberg/windows-build-tools)
@@ -278,6 +281,8 @@ console. There are two ways you can enable debug logging:
        ```
     3. See the MacOS Catalina guide above. It's still useful even if you don't
        run the same OS version.
+- `error: no member named 'GetContents' in 'v8::ArrayBuffer'`
+  - Use Node <=16
 
 ## Resources
 - [SteamCMD home page](https://developer.valvesoftware.com/wiki/SteamCMD)
