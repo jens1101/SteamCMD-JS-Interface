@@ -1,7 +1,7 @@
-import { createWriteStream, constants } from 'fs'
-import { access, mkdir, chmod, appendFile } from 'fs/promises'
-import { dirname, join, isAbsolute } from 'path'
-import { fileURLToPath } from 'url'
+import { createWriteStream, constants } from 'node:fs'
+import { access, mkdir, chmod, appendFile } from 'node:fs/promises'
+import { dirname, join, isAbsolute } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import axios from 'axios'
 import pty from 'node-pty'
 import { file } from 'tmp-promise'
@@ -13,8 +13,8 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url))
 
 /**
  * A progress update on an app update. This typically reports how much of an
- * app has been downloaded so far, however this isn't it's only use case. An
- * app update consists of multiple stages, including: pre-allocating space,
+ * app has been downloaded so far, however, this isn't its only use case. An
+ * app update consists of multiple stages, including pre-allocating space,
  * downloading, verification, etc.
  * @typedef {Object} SteamCmd~UpdateProgress
  * @property {string} stateCode The current state's code. This seems to be used
@@ -31,7 +31,7 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url))
  */
 
 /**
- * This class acts as an intermediate layer between SteamCMD and NodeJS. It
+ * This class acts as an intermediate layer between SteamCMD and Node.js. It
  * allows you to download the SteamCMD binaries, login with a custom user
  * account, update an app, etc.
  */
@@ -39,7 +39,7 @@ export class SteamCmd {
   /**
    * Used to indicate to the constructor that it's being legally called.
    * `SteamCmd.init` sets this to true and then calls the constructor. If this
-   * is false and the constructor is called then it will throw an exception.
+   * is false and the constructor is called, then it will throw an exception.
    * @type {boolean}
    */
   static #initialising = false
@@ -63,7 +63,7 @@ export class SteamCmd {
   #username
 
   /**
-   * The URL from which the Steam CMD executable can be downloaded. Changes
+   * The URL where the Steam CMD executable can be downloaded. Changes
    * depending on the current platform.
    * @type {string}
    */
@@ -77,15 +77,15 @@ export class SteamCmd {
   #exeName
 
   /**
-   * The currently running Steam CMD process. If no process is running then this
-   * will be `null`.
+   * The currently running Steam CMD process. If no process is running, then
+   * this will be `null`.
    * @type {IPty|null}
    */
   #currentSteamCmdPty = null
 
   /**
-   * Whether or not all the output of the `run` command will be logged to the
-   * console. Useful for debugging.
+   * Whether all the output of the `run` command will be logged to the console.
+   * Useful for debugging.
    * @type {boolean}
    * @see SteamCmd.run
    */
@@ -105,7 +105,7 @@ export class SteamCmd {
    * @throws {Error} Throws an error if the specified platform is not supported
    */
   constructor (binDir, installDir, username) {
-    // If the `initialising` variable is not set then throw an error. Direct
+    // If the `initialising` variable is not set, then throw an error. Direct
     // construction is not allowed.
     if (!SteamCmd.#initialising) {
       throw new Error('Constructor may not be called directly. Use ' +
@@ -149,7 +149,7 @@ export class SteamCmd {
   /**
    * Returns the currently running Steam CMD process. This can be used to
    * forcefully kill the process if something goes wrong. If no Steam CMD
-   * process is running then this returns `null` instead.
+   * process is running, then this returns `null` instead.
    * @returns {IPty|null}
    */
   get currSteamCmdProcess () {
@@ -182,7 +182,7 @@ export class SteamCmd {
    * executable will be downloaded to. Defaults to "temp/steamcmd_bin" in the
    * current directory.
    * @param {string} [options.installDir] The absolute path to where Steam apps
-   * will be installed to. Defaults to "temp/install_dir" in the current
+   * will be installed to. Default to "temp/install_dir" in the current
    * directory.
    * @param {string} [options.username='anonymous'] The username to log into
    * Steam.
@@ -219,7 +219,7 @@ export class SteamCmd {
       // eslint-disable-next-line no-empty
     }
 
-    // Finally return the ready-to-be-used instance
+    // Finally, return the ready-to-be-used instance
     return steamCmd
   }
 
@@ -236,7 +236,7 @@ export class SteamCmd {
    * Log in to a Steam account.
    * @param {string} username The username of the account to which to log in
    * to. Can be "anonymous" for anonymous login. This will update the username
-   * that's stored internally.
+   * stored internally.
    * @param {string} [password] The password for the above account. This can be
    * omitted only if you're logging in anonymously, or if your login
    * credentials have already been saved by Steam CMD.
@@ -263,12 +263,12 @@ export class SteamCmd {
       // eslint-disable-next-line no-empty
     }
 
-    // If the login succeeded then update the currently saved username.
+    // If the login succeeded, then update the currently saved username.
     this.#username = username
   }
 
   /**
-   * Convenience function to test if the username that's stored internally can
+   * Convenience function to test if the internally stored username can
    * log into Steam without requiring a password or Steam Guard code. This can
    * only succeed if Steam CMD previously logged into this account and the
    * account's credentials are still saved locally.
@@ -285,23 +285,23 @@ export class SteamCmd {
   }
 
   /**
-   * Download the SteamCMD binaries if they are not installed in the current
-   * install directory. Does nothing if the binaries have already been
+   * Download the SteamCMD binaries if they aren’t installed in the current
+   * installation directory. Does nothing if the binaries have already been
    * downloaded.
    * @returns {Promise<void>} Resolves once the binaries have been downloaded.
-   * @throws {Error} Throws an error if the SteamCMD executable was not found
+   * @throws {Error} Throws an error if the SteamCMD executable wasn't found
    * in the bin directory.
    */
   async downloadSteamCmd () {
     // Try to access the Steam CMD file as an executable. If this doesn't throw
-    // an error then we know that is has already been downloaded and we can
+    // an error, then we know that it has already been downloaded and we can
     // return.
     try {
       await access(this.exePath, constants.X_OK)
       return
     } catch {}
 
-    // If this part is reached then we need to download the executable.
+    // If this part is reached, then we need to download the executable.
 
     // Create the bin directory if need be
     await mkdir(this.#binDir, { recursive: true })
@@ -324,7 +324,7 @@ export class SteamCmd {
       // Extract the Steam CMD executable from the archive
       await extractArchive(tempFile.path, this.#binDir)
     } finally {
-      // Cleanup the temp file
+      // Clean-up the temp file
       await tempFile.cleanup()
     }
 
@@ -332,7 +332,7 @@ export class SteamCmd {
       // Automatically set the correct file permissions for the executable
       await chmod(this.exePath, 0o755)
     } catch (error) {
-      // If the executable's permissions couldn't be set then throw an error.
+      // If the executable's permissions couldn't be set, then throw an error.
       throw new Error('Steam CMD executable\'s permissions could not be set')
     }
 
@@ -340,7 +340,7 @@ export class SteamCmd {
       // Test if the file is accessible and executable
       await access(this.exePath, constants.X_OK)
     } catch (ex) {
-      // If the Steam CMD executable couldn't be accessed as an executable
+      // If the Steam CMD executable couldn't be accessed as an executable,
       // then throw an error.
       throw new Error('Steam CMD executable cannot be run')
     }
@@ -348,10 +348,10 @@ export class SteamCmd {
 
   /**
    * This generator runs the array of commands that you pass to it. It creates
-   * a temporary file, writes the commands to it, and the runs it as a script
+   * a temporary file, writes the commands to it, and then runs it as a script
    * via the Steam CMD executable. It asynchronously yields each line of output
-   * from the executable. Note that this will not actually run until the first
-   * value has been requested. Therefore this will mostly be run within a
+   * from the executable. Note that this will not run until the first value
+   * has been requested. Therefore, this will mostly be run within a
    * `for await of` loop.
    *
    * A list of all Steam CMD commands can be found here:
@@ -424,7 +424,7 @@ export class SteamCmd {
         yield outputLine
       }
 
-      // Once the output has been iterated over then wait for the process to
+      // Once the output has been iterated over, then wait for the process to
       // exit and get the exit code
       const exitCode = await exitPromise
 
@@ -438,38 +438,39 @@ export class SteamCmd {
         throw new SteamCmdError(exitCode)
       }
     } finally {
-      // Always cleanup the temp file
+      // Always clean-up the temp file
       await commandFile.cleanup()
     }
   }
 
   /**
    * Downloads or updates the specified Steam app. If this app has been
-   * partially downloaded in the current install directory then this will
+   * partially downloaded in the current installation directory, then this will
    * simply continue that download process.
    * @param {number} appId The ID of the app to download.
    * @param {Object} [options]
    * @param {string} [options.platformType] The platform type of the app that
-   * you want to download. If omitted then this will use the current platform.
+   * you want to download. If omitted, then this will use the current platform.
    * Must be one of "windows", "macos", or "linux".
    * @param {number} [options.platformBitness] Indicates the bitness of the
-   * platform. Can be either 32 or 64. If omitted then this will use the current
-   * platform's bitness.
+   * platform. It can be either 32 or 64. If omitted, then this will use the
+   * current platform's bitness.
    * @param {boolean} [options.validate=false] Whether or not to validate the
    * files after download.
    * @param [options.language] The language in which to download the app.
-   * @param [options.betaName] Used to download a beta branch of an app. Specify
-   * the name of the branch that you want to download, e.g.: "prerelease",
-   * "beta", etc. If omitted will download the publicly available app.
+   * @param [options.betaName] Used to download a beta branch of an app.
+   * Specify the name of the branch that you want to download, e.g.:
+   * "prerelease", "beta", etc. If omitted will download the publicly available
+   * app.
    * @param [options.betaPassword] The password for downloading the beta branch
    * (if applicable).
    * @yields {SteamCmd~UpdateProgress} Progress updates while the app is being
    * updated.
    * @throws {SteamCmdError} Throws an error if the Steam CMD executable quit
    * with a non-zero exit code.
-   * @throws {TypeError} Throws an error if the install directory is a relative
-   * path. It must be absolute, because SteamCMD doesn't support relative
-   * install directories.
+   * @throws {TypeError} Throws an error if the installation directory is a
+   * relative path. It must be absolute, because SteamCMD doesn't support
+   * relative install directories.
    */
   async * updateApp (
     appId,
@@ -489,7 +490,7 @@ export class SteamCmd {
         'installDir must be an absolute path to update an app')
     }
 
-    // Create the install directory if need be
+    // Create the installation directory if need be
     await mkdir(this.#installDir, { recursive: true })
 
     const appUpdateCommand = [`app_update ${appId}`]
@@ -516,8 +517,7 @@ export class SteamCmd {
 
     /**
      * This regular expression tests each line of output from Steam CMD. It
-     * will match the patten that is emitted when the current app is being
-     * downloaded.
+     * will match the patten emitted when the current app is being downloaded.
      * @type {RegExp}
      */
     const progressRegex =
@@ -527,7 +527,7 @@ export class SteamCmd {
       // Test the current line of output
       const result = progressRegex.exec(line)
 
-      // If the current line doesn't match the Regex pattern then it's skipped.
+      // If the current line doesn't match the Regex pattern, then it's skipped.
       if (result == null) continue
 
       // If the pattern matched then we assign each one of the capture groups to

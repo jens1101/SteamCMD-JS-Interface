@@ -22,8 +22,8 @@ export class SteamCmdError extends Error {
      */
     UNKNOWN_ERROR: 1,
     /**
-     * Indicates that the user attempted to login while another user was already
-     * logged in.
+     * Indicates that the user attempted to log in while another user was
+     * already logged in.
      */
     ALREADY_LOGGED_IN: 2,
     /**
@@ -73,8 +73,8 @@ export class SteamCmdError extends Error {
    * returned.
    */
   constructor (exitCode) {
-    // Auto-generate the error message and send it to the super class.
     // noinspection JSCheckFunctionSignatures
+    // Auto-generate the error message and send it to the superclass.
     super(SteamCmdError.getErrorMessage(exitCode))
 
     this.name = 'SteamCmdError'

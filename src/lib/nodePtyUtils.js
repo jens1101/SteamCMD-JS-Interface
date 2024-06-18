@@ -6,7 +6,7 @@ import stripAnsi from 'strip-ansi'
  * instance.
  * @param {IPty} pty The pseudo terminal instance
  * @param {boolean} [raw=false] If true then the output of the Steam CMD
- * process is returned as is. If false then line endings will be normalised to
+ * process is returned as is. If false, then line endings will be normalised to
  * `\n`, all `\r` will be stripped, all ANSI escape characters will be
  * stripped, and all white spaces at the start and end of each output line will
  * be trimmed.
@@ -19,8 +19,7 @@ export async function * getPtyDataIterator (pty, raw = false) {
    */
   const asyncQueue = new AsyncQueue()
 
-  // For each "data" event add the terminal output to the async queue.
-  // noinspection JSUnresolvedFunction
+  // For each "data" event, add the terminal output to the async queue.
   const { dispose: disposeDataListener } = pty.onData(outputLine => {
     if (raw) {
       asyncQueue.enqueue(outputLine)
@@ -36,7 +35,7 @@ export async function * getPtyDataIterator (pty, raw = false) {
     asyncQueue.enqueue(line)
   })
 
-  // Once the "exit" event has been fired then dispose of all the listeners and
+  // Once the "exit" event has been fired, then dispose of all the listeners and
   // enqueue the "done" signal in the async queue,
   // noinspection JSUnresolvedFunction
   const { dispose: disposeExitListener } = pty.onExit(() => {
