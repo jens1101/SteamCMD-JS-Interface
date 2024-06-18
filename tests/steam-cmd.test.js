@@ -2,9 +2,9 @@
  * @jest-environment node
  */
 
-import { rm } from 'fs/promises'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { rm } from 'node:fs/promises'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { SteamCmd } from '../src/SteamCmd'
 
 /**

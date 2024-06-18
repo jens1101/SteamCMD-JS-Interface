@@ -59,10 +59,11 @@ export async function * getPtyDataIterator (pty, raw = false) {
  */
 export async function getPtyExitPromise (pty) {
   return new Promise(resolve => {
-    // noinspection JSUnresolvedFunction
     const { dispose: disposeExitListener } = pty.onExit(event => {
-      resolve(event.exitCode)
+      const exitCode = event.exitCode
       disposeExitListener()
+
+      resolve(exitCode)
     })
   })
 }

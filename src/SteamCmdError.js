@@ -73,7 +73,6 @@ export class SteamCmdError extends Error {
    * returned.
    */
   constructor (exitCode) {
-    // noinspection JSCheckFunctionSignatures
     // Auto-generate the error message and send it to the superclass.
     super(SteamCmdError.getErrorMessage(exitCode))
 
