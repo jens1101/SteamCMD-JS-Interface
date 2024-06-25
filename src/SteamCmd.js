@@ -521,7 +521,7 @@ export class SteamCmd {
      * @type {RegExp}
      */
     const progressRegex =
-      /Update state \((0x\d+)\) (\w+), progress: (\d+.\d+) \((\d+) \/ (\d+)\)$/
+      /Update state \((0x\d+)\) ([^,]+), progress: (\d+.\d+) \((\d+) \/ (\d+)\)/
 
     for await (const line of this.run(commands)) {
       // Test the current line of output
