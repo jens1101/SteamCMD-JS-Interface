@@ -6,11 +6,8 @@ Windows, Linux, or macOS.
 
 ## Setup
 
--
-
-A [maintained Node version](https://github.com/nodejs/Release#release-schedule).
-This is currently versions >= 18.
-
+- A [maintained Node version](https://github.com/nodejs/Release/). This is
+  currently versions >= 18.
 - Install
   the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
   - **For Windows users**:
@@ -19,7 +16,7 @@ This is currently versions >= 18.
       ```shell script
       npm install --global windows-build-tools
       ```
-    - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/),
+    - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/),
       only the "Desktop C++ Apps" components need to be installed
   - **For Linux users**:
     - _Make_, _Python_, and _build essential_. On Ubuntu these can be installed
@@ -187,7 +184,7 @@ for await(const progress of steamCmd.updateApp(740, 'windows', 32)) {
 }
 
 // Once the loop above has completed then the app has been successfully
-// downloaded
+// downloaded and installed.
 ```
 
 ## Running Arbitrary commands
@@ -286,23 +283,15 @@ console. There are two ways you can enable debug logging:
 - `Error: The module '[...]/pty.node' was compiled against a different Node.js`
   - Run `npm rebuild`
 - `gyp: No Xcode or CLT version detected!`
-  - If you are running macOS Catalina, then see
-    [this](https://github.com/nodejs/node-gyp/blob/master/macOS_Catalina.md)
-    extensive troubleshooting guide.
-  - If you are not on macOS Catalina, then try one of the following:
-    1. Run
-       ```shell script
-       xcode-select --install
-       ```
-    2. Run
-       ```shell script
-       sudo rm -rf $(xcode-select --print-path)
-       xcode-select --install
-       ```
-    3. See the macOS Catalina guide above. It's still useful even if you don't
-       run the same OS version.
-- `error: no member named 'GetContents' in 'v8::ArrayBuffer'`
-  - Use Node <=16
+  - Run
+    ```shell script
+    xcode-select --install
+    ```
+  - If the above command didn't work, then try
+    ```shell script
+    sudo rm -rf $(xcode-select --print-path)
+    xcode-select --install
+    ```
 
 ## Resources
 
