@@ -1,22 +1,22 @@
 # SteamCMD JavaScript Interface
+
 This library allows you to access
-[SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) via NodeJS on
-Windows, Linux, or Mac.
+[SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) via Node.js on
+Windows, Linux, or macOS.
 
 ## Setup
-- A [maintained Node version](https://github.com/nodejs/Release#release-schedule).
-  This is currently versions >= 12.
-  - There seems to be an issue with
-    [`node-pty` and Node 17](https://github.com/microsoft/node-pty/issues/527).
-    For now stick to Node <=16.
-- Install the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
+
+- A [maintained Node version](https://github.com/nodejs/Release/). This is
+  currently versions >= 18.
+- Install
+  the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
   - **For Windows users**:
     - [Windows-Build-Tools](https://github.com/felixrieseberg/windows-build-tools)
       these can be installed via the following command:
       ```shell script
       npm install --global windows-build-tools
       ```
-    - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/),
+    - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/),
       only the "Desktop C++ Apps" components need to be installed
   - **For Linux users**:
     - _Make_, _Python_, and _build essential_. On Ubuntu these can be installed
@@ -25,16 +25,17 @@ Windows, Linux, or Mac.
       sudo apt install -y make python build-essential
       ```
   - **For Mac users**:
-    - Xcode Command Line Tools. These might be installed already. If you cannot
-      install this package then run:
+    - Xcode Command Line Tools. These might be installed already. If you can’t
+      install this package, then run:
       ```shell script
       xcode-select --install
       ```
 
-      If you are still having trouble then see the troubleshooting section
+      If you’re still having trouble, then see the troubleshooting section
       below.
 
 ## Basic Usage Example
+
 1. Install the package
    ```sh
    npm install steamcmd-interface
@@ -49,7 +50,7 @@ Windows, Linux, or Mac.
    const steamCmd = await SteamCmd.init({})
    ```
 
-3. Now you can use the instance to interact with SteamCMD. You can login with
+3. Now you can use the instance to interact with SteamCMD. You can log in with
    your user account or anonymously (default), update apps, or run a series of
    commands.
 
@@ -64,28 +65,32 @@ Windows, Linux, or Mac.
    ```
 
 ## Construction
+
 A new `SteamCmd` object **cannot** be created using the `new` keyword. It will
 throw an error. You must use the `SteamCmd.init` async function. This is because
 construction is fundamentally asynchronous.
 
 ### Options
-An options object can be passed to the `SteamCmd.init` function to configure
+
+An option object can be passed to the `SteamCmd.init` function to configure
 the behaviour of the instance. The following options are available:
+
 - `binDir`: The path to which the SteamCMD binaries will be downloaded to.
-  Defaults to "[the module's base directory]/temp/install_dir/[platform string]"
-- `installDir`: To where SteamCMD will download all applications. Defaults to
+  Default to "[the module's base directory]/temp/install_dir/[platform string]"
+- `installDir`: To where SteamCMD will download all applications. Default to
   "[the module's base directory]/temp/install_dir"
-- `username`: The user name to log in as. Defaults to "anonymous"
+- `username`: The username to log in as. Defaults to "anonymous"
 
 ### Examples
-- Changing the install directory to install apps to the current working
+
+- Changing the installation directory to install apps to the current working
   directory.
   ```js
   SteamCmd.init({
     installDir: process.cwd()
   })
   ```
-- Setting a user name for downloading purchased games.
+- Setting a username for downloading purchased games.
 
   **Note** that this will only work if you successfully logged in once and
   SteamCMD has your credentials cached. See the ["Logging In"](#logging-in)
@@ -97,22 +102,25 @@ the behaviour of the instance. The following options are available:
   ```
 
 ## Logging In
+
 SteamCmd offers two login-related functions:
+
 - `isLoggedIn` simply tests if the currently saved username is logged in with
-  SteamCMD. If this returns true then SteamCMD has access to your library and
-  you can run actions related you your library; such as downloading games.
-- `login` uses the given username, password, and Steam Guard code to login.
+  SteamCMD. If this returns true, then SteamCMD has access to your library, and
+  you can run actions related to your library, such as downloading games.
+- `login` uses the given username, password, and Steam Guard code to log in.
   This will resolve if the login was successful or throw an error if the login
   failed.
 
 ### Examples
-1. By default on initialisation SteamCmd logs in anonymously, therefore the
+
+1. By default, on initialisation SteamCmd logs in anonymously, therefore the
    login test returns true.
    ```js
    const steamCmd = await SteamCmd.init()
    console.log(await steamCmd.isLoggedIn()) // Logs "true"
    ```
-2. If we initialise with a username that we have never logged in as then the
+2. If we initialise with a username that we’ve never logged in as then the
    login test returns false.
    ```js
    const steamCmd = await SteamCmd.init({
@@ -130,8 +138,8 @@ SteamCmd offers two login-related functions:
    await steamCmd.login('example', 'password123', 'AABB2')
    console.log(await steamCmd.isLoggedIn()) // Logs "true"
    ```
-4. If we initialise with a username that we have previously logged in with then
-   SteamCMD will use the cached credentials to log us in. Therefore we don't
+4. If we initialise with a username that we’ve previously logged in with, then
+   SteamCMD will use the cached credentials to log us in. Therefore, we don't
    need to call the "login" function.
    ```js
    const steamCmd = await SteamCmd.init({
@@ -141,9 +149,10 @@ SteamCmd offers two login-related functions:
    ```
 
 ## Updating Apps (i.e. Downloading Games)
-You can download games into the install directory by using the `updateApp`
+
+You can download games into the installation directory by using the `updateApp`
 function. It's an asynchronous generator function that yields an object that
-reports on the current progress of the update. If you are logged in then you
+reports on the current progress of the update. If you’re logged in, then you
 will have access to your Steam library.
 
 You have to give `updateApp` the app ID of the game that you want to download.
@@ -152,10 +161,11 @@ You can search for your game to get the app ID on
 
 This function also optionally accepts the platform type and bitness of the
 application. This will allow you to download, for example, Windows games on a
-Mac. If omitted then the platform and bitness of the current operating system
+Mac. If omitted, then the platform and bitness of the current operating system
 are used.
 
 ### Example
+
 ```js
 const steamCmd = await SteamCmd.init()
 
@@ -174,19 +184,21 @@ for await(const progress of steamCmd.updateApp(740, 'windows', 32)) {
 }
 
 // Once the loop above has completed then the app has been successfully
-// downloaded
+// downloaded and installed.
 ```
 
 ## Running Arbitrary commands
+
 You can run a series of commands using the `run` function. It accepts an array
-of strings. Each sting must be a command that can be run by SteamCMD. An
-exhaustive list of all available commands is available in
+of strings. Each sting must be a command that SteamCMD can run. An exhaustive
+list of all available commands is available in
 [this repository](https://github.com/dgibbs64/SteamCMD-Commands-List/blob/master/steamcmd_commands.txt).
 
 This function is an asynchronous generator function. It yields each line of
 output from SteamCMD. It will throw an error if an error occurred.
 
 ### Example
+
 ```js
 const steamCmd = await SteamCmd.init()
 
@@ -201,23 +213,25 @@ for await(const line of steamCmd.run(commands)) {
 ```
 
 ## Error Handling
+
 Some function can throw a `SteamCmdError` error (most notably the `run` and
 `updateApp` generators). This error object's `message` property is generated
-based on the exit code that the SteamCMD binary returned. In addition the
+based on the exit code that the SteamCMD binary returned. In addition, the
 original exit code can be retrieved via the `exitCode` property.
 
 The class also has a few useful statics, such as the `EXIT_CODES` object, and
 the `getErrorMessage` function.
 
 ### Example
+
 ```js
 const steamCmd = await SteamCmd.init()
 
 // Try to download Half-Life 2
 try {
-    for await(const progress of steamCmd.updateApp(220)) {
-      console.log(progress)
-    }
+  for await(const progress of steamCmd.updateApp(220)) {
+    console.log(progress)
+  }
 } catch (error) {
   // Logs "The application failed to install for some reason. Reasons include:
   // you do not own the application, you do not have enough hard drive space, a
@@ -241,8 +255,10 @@ try {
 ```
 
 ## Debugging
+
 You can enable debug logging where SteamCmd will log each line of output to the
 console. There are two ways you can enable debug logging:
+
 - By setting `enableDebugLogging` to `true` in the `init` function.
   ```js
   SteamCmd.init({ enableDebugLogging: true })
@@ -258,33 +274,27 @@ console. There are two ways you can enable debug logging:
   ```
 
 ## Troubleshooting
+
 - `gyp ERR! find VS gyp ERR! find VS msvs_version not set from command line or
   npm config`
   - Run `npm config set msvs_version 2017`. This is because native extensions on
-    Windows are built using the Visual Studio build tools. If no version is set
+    Windows are built using the Visual Studio build tools. If no version is set,
     then the build fails.
 - `Error: The module '[...]/pty.node' was compiled against a different Node.js`
   - Run `npm rebuild`
 - `gyp: No Xcode or CLT version detected!`
-  - If you are running MacOS Catalina then see
-    [this](https://github.com/nodejs/node-gyp/blob/master/macOS_Catalina.md)
-    extensive troubleshooting guide.
-  - If you are not on MacOS Catalina then try one of the following:
-    1. Run
-       ```shell script
-       xcode-select --install
-       ```
-    2. Run
-       ```shell script
-       sudo rm -rf $(xcode-select --print-path)
-       xcode-select --install
-       ```
-    3. See the MacOS Catalina guide above. It's still useful even if you don't
-       run the same OS version.
-- `error: no member named 'GetContents' in 'v8::ArrayBuffer'`
-  - Use Node <=16
+  - Run
+    ```shell script
+    xcode-select --install
+    ```
+  - If the above command didn't work, then try
+    ```shell script
+    sudo rm -rf $(xcode-select --print-path)
+    xcode-select --install
+    ```
 
 ## Resources
+
 - [SteamCMD home page](https://developer.valvesoftware.com/wiki/SteamCMD)
 - [All SteamCMD commands](https://github.com/dgibbs64/SteamCMD-Commands-List)
 - [Steam DB app search](https://steamdb.info/search/?a=app)

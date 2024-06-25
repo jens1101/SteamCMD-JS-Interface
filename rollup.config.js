@@ -1,11 +1,10 @@
 import babel from '@rollup/plugin-babel'
-import pkg from './package.json'
 
 export default [
   {
     input: 'src/SteamCmd.js',
     output: [
-      { file: pkg.main, format: 'es' }
+      { file: 'dist/steam-cmd.js', format: 'es' }
     ],
     plugins: [
       babel({
@@ -14,17 +13,17 @@ export default [
       })
     ],
     external: [
+      'node:fs',
+      'node:fs/promises',
+      'node:path',
+      'node:url',
       'axios',
-      'extract-zip',
-      'file-type',
-      'fs',
-      'fs/promises',
       'node-pty',
-      'path',
-      'strip-ansi',
-      'tar',
       'tmp-promise',
-      'url'
+      'file-type',
+      'extract-zip',
+      'tar',
+      'strip-ansi'
     ]
   }
 ]

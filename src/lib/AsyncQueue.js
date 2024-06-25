@@ -10,14 +10,14 @@ export class AsyncQueue {
 
   /**
    * A promise that will be resolved while the queue contains one or more items.
-   * Otherwise it will remain unresolved until an item is enqueued.
+   * Otherwise, it will remain unresolved until an item is enqueued.
    * @type {Promise<void>}
    */
   #dequeuePromise
 
   /**
    * A function that will resolve the current dequeue promise. If the promise
-   * has already been resolved then calling this will do nothing.
+   * has already been resolved, then calling this will do nothing.
    * @type {Function}
    */
   #resolveDequeuePromise
@@ -33,7 +33,7 @@ export class AsyncQueue {
   #resolveClosedPromise
 
   /**
-   * Indicates whether or not this queue is closed
+   * Indicates whether this queue is closed
    * @type {boolean}
    */
   #isClosed = false
@@ -51,7 +51,7 @@ export class AsyncQueue {
       this.#resolveClosedPromise = resolve
     })
 
-    // If initial values have been provided then add them to the queue and
+    // If initial values have been provided, then add them to the queue and
     // resolve the dequeue promise. The promise must be resolved right now
     // because values are available to be dequeued.
     if (Array.isArray(values)) {
@@ -73,7 +73,7 @@ export class AsyncQueue {
   /**
    * Pops the next item from the queue.
    *
-   * If the queue is empty then this will wait until a new item is added to the
+   * If the queue is empty, then this will wait until a new item is added to the
    * queue and then pops it.
    *
    * If the queue is closed while this function is waiting to dequeue then this
@@ -83,17 +83,17 @@ export class AsyncQueue {
    * function is waiting to dequeue.
    */
   async dequeue () {
-    // If this queue is closed then this promise will ensure that an error is
+    // If this queue is closed, then this promise will ensure that an error is
     // thrown if the user tries to dequeue another value.
     const closePromise = this.#closedPromise
       .then(() => { throw new Error('Cannot dequeue when queue is closed') })
 
     // We race the close and dequeue promises against each other. If this queue
-    // gets closed while we wait for a value to be dequeued then the close
+    // gets closed while we wait for a value to be dequeued, then the close
     // promise above will throw an error.
     await Promise.race([closePromise, this.#dequeuePromise])
 
-    // If the current queue only contains 1 item then set the dequeue promise
+    // If the current queue only contains 1 item, then set the dequeue promise
     // again, because the queue will be empty after the last value has been
     // popped.
     if (this.#queue.length <= 1) this._createDequeuePromise()
@@ -108,7 +108,7 @@ export class AsyncQueue {
    * @throws {Error} Throws an error when the queue is closed.
    */
   enqueue (item) {
-    // If this queue is closed then throw an error immediately
+    // If this queue is closed, then throw an error immediately
     if (this.#isClosed) throw new Error('Cannot enqueue when queue is closed')
 
     this.#queue.unshift(item)
@@ -132,7 +132,7 @@ export class AsyncQueue {
   }
 
   /**
-   * This function allows the queue to be used as an async iterator. Therefore
+   * This function allows the queue to be used as an async iterator. Therefore,
    * an instance of this class can be used in a `for await of` loop.
    * @returns {AsyncIterator}
    */
