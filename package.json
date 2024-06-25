@@ -13,7 +13,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jens1101/SteamCMD-JS-Interface"
+    "url": "git+https://github.com/jens1101/SteamCMD-JS-Interface.git"
   },
   "engines": {
     "node": ">=18.0.0"
