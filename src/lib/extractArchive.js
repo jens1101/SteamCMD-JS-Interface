@@ -1,6 +1,6 @@
-import FileType from 'file-type'
+import { fileTypeFromFile } from 'file-type'
 import extractZip from 'extract-zip'
-import tar from 'tar'
+import { extract } from 'tar'
 
 /**
  * Extracts the contents of the given archive to the destination folder.
@@ -13,11 +13,11 @@ import tar from 'tar'
  * @throws Error when the archive format is not recognised.
  */
 export async function extractArchive (pathToArchive, targetDirectory) {
-  const fileTypeDetails = await FileType.fromFile(pathToArchive)
+  const fileTypeDetails = await fileTypeFromFile(pathToArchive)
 
   switch (fileTypeDetails.mime) {
     case 'application/gzip':
-      return tar.extract({
+      return extract({
         cwd: targetDirectory,
         strict: true,
         file: pathToArchive

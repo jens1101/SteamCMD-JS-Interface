@@ -9,11 +9,8 @@ Windows, Linux, or macOS.
 -
 
 A [maintained Node version](https://github.com/nodejs/Release#release-schedule).
-This is currently versions >= 12.
+This is currently versions >= 18.
 
-- There seems to be an issue with
-  [`node-pty` and Node 17](https://github.com/microsoft/node-pty/issues/527).
-  For now, stick to Node <=16.
 - Install
   the [dependencies for `node-pty`](https://www.npmjs.com/package/node-pty?activeTab=readme#dependencies)
   - **For Windows users**:

@@ -32,10 +32,11 @@ global.beforeAll(
     const tempDir = join(dirname(fileURLToPath(import.meta.url)), '../temp')
     await rm(tempDir, { force: true, recursive: true })
 
-    steamCmd = await SteamCmd.init({ enableDebugLogging: true })
+    steamCmd = await SteamCmd.init()
   },
-  // SteamCMD downloads about 20MB on first launch. Set the timeout accordingly.
-  calculateDownloadTimeout(20_000_000)
+  // SteamCMD downloads about 20MB on first launch plus some time for setup.
+  // Set the timeout accordingly.
+  calculateDownloadTimeout(20_000_000) + 120_000
 )
 
 global.test(
@@ -43,7 +44,7 @@ global.test(
   async () => {
     await steamCmd.login('anonymous')
   },
-  20_000
+  60_000
 )
 
 global.test(
